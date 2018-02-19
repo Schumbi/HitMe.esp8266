@@ -56,13 +56,32 @@ void ISR_newdata (void)
 // member to process isr data
 void BMA020::_isr_callback()
 {
-    if (isrDataCtr >= isrDataMax)
+
+    beginTransmission (_adr);
+    write (_ACC_Start_ADR);
+    endTransmission();
+    uint8_t cnt = requestFrom (_adr, _ACC_uint8_t_Count);
+
+    auto ctr = isrDataCtr;
+
+    for (; ctr < cnt; ctr++)
+    {
+        isrData[isrDataCtr + ctr] = read();
+
+    }
+
+    isrDataCtr += cnt;
+
+    if (isrDataCtr + _ACC_uint8_t_Count >= isrDataMax)
     {
         isrDataCtr = 0;
     }
 
-    auto ctr = isrDataCtr;
-    isrData[ctr] = getRawData();
+    // latched interrupts
+    uint8_t rah = readReg (BMA020REGISTER::E_CTRL_0A);
+    rah |= (1 << 6);
+    writeReg (BMA020REGISTER::E_CTRL_0A, rah);
+
 }
 
 // access to registers
@@ -89,8 +108,6 @@ uint8_t BMA020::getChipId()
 {
     return readReg (BMA020::E_CHIPID);
 }
-
-
 
 bool BMA020::update_acc (BMA020::raw_acc_t &data)
 {
@@ -144,6 +161,11 @@ bool BMA020::setNewDataInterrupt (bool fire)
         r15h &= ~_bit_mask_NewData_INT;
     }
 
+    // no motion detectiosn
+    r15h &= ~ (1 << 6);
+    // latched interrupts
+    r15h |=  (1 << 4);
+
     writeReg (BMA020REGISTER::E_CONTROL_OP, r15h);
 
     return true;
@@ -158,11 +180,6 @@ bool BMA020::getNewDataInterrupt()
 constexpr uint8_t att_mask = (uint8_t) ((1 << 7) | (1 << 5) | (1 << 6));
 bool BMA020::setRange (BMA020::BMA020RANGE range)
 {
-    if (_isSetup == false)
-    {
-        return false;
-    }
-
     uint8_t reg_14h = readReg (E_SETUP_ACC);
     // preserve highest bits
     uint8_t attention = reg_14h & att_mask;
@@ -191,22 +208,17 @@ BMA020::BMA020RANGE BMA020::getRange()
 
 bool BMA020::setBandwidth (BMA020::BMA020BANDWIDTH bandwidth)
 {
-    if (_isSetup == false)
-    {
-        return false;
-    }
-
     auto reg_14h = readReg (E_SETUP_ACC);
     // preserve highest bits
     uint8_t attention = reg_14h & att_mask;
     // 11100111b = 11111111b ^ 00011000b
-    auto delMask = ((1 << 8) - 1) ^ _bit_mask_Bandwidth;
+    auto delMask =  ~_bit_mask_Bandwidth;
     // clear wanted bits
     reg_14h &= delMask;
     // and reset them with new value
-    reg_14h |= (bandwidth << _BW0);
+    reg_14h |= ((uint8_t)bandwidth << _BW0);
     // restore highest bits
-    delMask = ((1 << 8) - 1) ^ att_mask;
+    delMask = ~att_mask;
     reg_14h &= delMask;
     reg_14h |= attention;
     writeReg (E_SETUP_ACC, reg_14h);
@@ -284,12 +296,17 @@ bool BMA020::setupInterruptNewDataMode (uint8_t interruptBMAOutPin, bool enable)
     }
 
     pinMode (interruptBMAOutPin, INPUT);
+
     attachInterrupt (digitalPinToInterrupt (interruptBMAOutPin), ISR_newdata,
-                     HIGH);
-    return setNewDataInterrupt (enable);
+                     RISING); // RISING
+
+    return setNewDataInterrupt (false);
 }
 
-BMA020::BMA020() : TwoWire(), _isSetup (false) {}
+BMA020::BMA020() : TwoWire(), _isSetup (false)
+{
+    setup();
+}
 
 BMA020::BMA020 (uint8_t adr, uint8_t sda, uint8_t scl) : TwoWire(),
     _isSetup (false)
@@ -302,6 +319,11 @@ bool BMA020::setup (uint8_t sda, uint8_t scl, uint8_t adr, BMA020RANGE range,
 {
     TwoWire::begin (sda, scl);
     _adr = adr;
+    // soft reset
+    uint8_t rag = readReg (BMA020REGISTER::E_CTRL_0A);
+    rag |= (1 << 1);
+    writeReg (BMA020REGISTER::E_CTRL_0A, rag);
+
     // wait a bit for things to settle
     delay (20);
     bool ok = isOk();

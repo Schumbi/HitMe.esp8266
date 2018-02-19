@@ -41,6 +41,7 @@ public:
         E_DATA_MSBY = 0x05, // acc data y
         E_DATA_LSBZ = 0x06, // acc data z
         E_DATA_MSBZ = 0x07, // acc data z
+        E_CTRL_0A = 0x0a,
         E_SETUP_ACC = 0x14, // range bandwidth
         E_CONTROL_OP = 0x15 // new data interrupt
     };
@@ -68,6 +69,8 @@ public:
         double_t acc_y;
     };
 
+    uint16_t isrDataCtr = 0;
+
 private:
     // setup state
     bool _isSetup;
@@ -84,8 +87,8 @@ private:
     // get internal data
     bool update_acc (raw_acc_t &data);
     // buffers for the interrupt data
-    raw_acc_t isrData[ACCBUFFLEN];
-    uint16_t isrDataCtr = 0;
+    uint8_t isrData[ACCBUFFLEN];
+    //uint8_t isrDataCtr = 0;
     const uint16_t isrDataMax = ACCBUFFLEN;
     // isr callback "member"
     void _isr_callback();

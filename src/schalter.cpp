@@ -72,68 +72,67 @@ void setup()
     delay (ms);
     digitalWrite (BUILTIN_LED, !digitalRead (LED_BUILTIN));
     Serial.println (acc.getStatus());
-    acc.setBandwidth (BMA020::BMA020BANDWIDTH::BMA020_BW_1500HZ);
+    acc.setBandwidth (BMA020::BMA020BANDWIDTH::BMA020_BW_25HZ);
+    Serial.print ("Bandwidth: ");
+    Serial.println (acc.getBandWidth());
     acc.setRange (r);
+    Serial.print ("Range: ");
+    Serial.println (acc.getRange());
     acc.setupInterruptNewDataMode (D5, false);
-    acc.setNewDataInterrupt (false);
+    acc.setNewDataInterrupt (true);
     //sendUdp (dest, port, String ("#### Geht los!!! ####") + '\n');
 }
 
-uint8_t buf[255];
+//uint8_t buf[255];
 void loop()
 {
-    if (acc.isOk() == false)
-    {
-        String data ("Sensor error!\n");
-        sendUdp (dest, port, data);
-        printf ("Sensor error! \n");
-        delay (10);
-        return;
-    }
+    Serial.println (acc.isrDataCtr);
+    delay (10);
+    /*
+        auto accData = acc.getDecData (acc.getRawData());
+        union data16_t
+        {
+            uint16_t data;
+            uint8_t parts[2];
+        } conv16;
 
-    auto accData = acc.getDecData (acc.getRawData());
-    union data16_t
-    {
-        uint16_t data;
-        uint8_t parts[2];
-    } conv16;
+        union data32_t
+        {
+            uint32_t millis;
+            uint8_t parts[4];
+        } conv32;
+        //    memcpy (buf, conv32.parts, 4);
+        conv32.millis = millis();
+        buf[0] = conv32.parts[0];
+        buf[1] = conv32.parts[1];
+        buf[2] = conv32.parts[2];
+        buf[3] = conv32.parts[3];
+        conv16.data = accData.acc_x;
+        buf[4] = conv16.parts[0];
+        buf[5] = conv16.parts[1];
+        conv16.data = accData.acc_y;
+        buf[6] = conv16.parts[0];
+        buf[7] = conv16.parts[1];
+        conv16.data = accData.acc_z;
+        buf[8] = conv16.parts[0];
+        buf[9] = conv16.parts[1];
+        buf[10] = 0;
+        buf[11] = 0;
 
-    union data32_t
-    {
-        uint32_t millis;
-        uint8_t parts[4];
-    } conv32;
-    //    memcpy (buf, conv32.parts, 4);
-    conv32.millis = millis();
-    buf[0] = conv32.parts[0];
-    buf[1] = conv32.parts[1];
-    buf[2] = conv32.parts[2];
-    buf[3] = conv32.parts[3];
-    conv16.data = accData.acc_x;
-    buf[4] = conv16.parts[0];
-    buf[5] = conv16.parts[1];
-    conv16.data = accData.acc_y;
-    buf[6] = conv16.parts[0];
-    buf[7] = conv16.parts[1];
-    conv16.data = accData.acc_z;
-    buf[8] = conv16.parts[0];
-    buf[9] = conv16.parts[1];
-    buf[10] = 0;
-    buf[11] = 0;
+    //    snprintf (buf, 254, "%10ld:%4d,%4d,%4d\n", millis(), accData.acc_x,
+    //              accData.acc_y, accData.acc_z);
+    //    String data (buf);
 
-//    snprintf (buf, 254, "%10ld:%4d,%4d,%4d\n", millis(), accData.acc_x,
-//              accData.acc_y, accData.acc_z);
-//    String data (buf);
+        udp.beginPacket (dest, port);
+        udp.write (buf, 12);
+        auto ret = udp.endPacket();
 
-    udp.beginPacket (dest, port);
-    udp.write (buf, 12);
-    auto ret = udp.endPacket();
+    //    auto ret = sendUdp (dest, port, data);
+    //    Serial.println (data);
 
-//    auto ret = sendUdp (dest, port, data);
-//    Serial.println (data);
-
-    if (ret == 0)
-    {
-        Serial.println (ret);
-    }
+        if (ret == 0)
+        {
+            Serial.println (ret);
+        }
+        */
 }
