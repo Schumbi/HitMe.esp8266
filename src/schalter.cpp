@@ -1,6 +1,9 @@
 #include "schalter.h"
 
 #include <WiFiUdp.h>
+#include <osapi.h>
+#include <user_interface.h>
+
 #include "bma020.h"
 
 #include "../../wlan.hpp"
@@ -55,23 +58,26 @@ void setup_wifi()
     delay (100);
 }
 
+const uint16_t sendBufSize = 500;
+uint8_t* sendBuf;
+
+uint16_t maxAccBuffLen;
 void setup()
 {
     pinMode (BUILTIN_LED, OUTPUT); // Initialize the BUILTIN_LED pin as an output
     // Serial Stuff
     Serial.begin (9600);
-    Serial.setDebugOutput (false);
+    Serial.setDebugOutput (true);
     Serial.println ("Start...");
     delay (100);
-    setup_wifi();
-    udp.begin (port);
-    Serial.printf ("UDP port %d\n", udp.localPort());
+
+    sendBuf = (uint8_t*)malloc (sendBufSize * sizeof (uint8_t));
+
     int ms = 100;
     // initialize BMA020
     Serial.println (acc.setup());
     delay (ms);
     digitalWrite (BUILTIN_LED, !digitalRead (LED_BUILTIN));
-    Serial.println (acc.getStatus());
     acc.setBandwidth (BMA020::BMA020BANDWIDTH::BMA020_BW_25HZ);
     Serial.print ("Bandwidth: ");
     Serial.println (acc.getBandWidth());
@@ -79,60 +85,56 @@ void setup()
     Serial.print ("Range: ");
     Serial.println (acc.getRange());
     acc.setupInterruptNewDataMode (D5, false);
-    acc.setNewDataInterrupt (true);
+
+    while (acc.isOk() == false)
+    {
+        Serial.printf ("%s \r", acc.getStatus().c_str());
+        delay (500);
+    }
+
+    Serial.printf ("%s \n", acc.getStatus().c_str());
+    Serial.println ("Sensor ok\n");
+    maxAccBuffLen = acc.getAccBuflen();
     //sendUdp (dest, port, String ("#### Geht los!!! ####") + '\n');
+
+    setup_wifi();
+    udp.begin (port);
+    Serial.printf ("UDP port %d\n", udp.localPort());
+    acc.setNewDataInterrupt (true);
+
+    Serial.println (system_get_free_heap_size());
+
 }
 
-//uint8_t buf[255];
+union
+{
+    uint32_t data1x32;
+    uint16_t data2x16[2];
+    uint8_t data4x8[4];
+} conv;
+
 void loop()
 {
-    Serial.println (acc.isrDataCtr);
-    delay (10);
-    /*
-        auto accData = acc.getDecData (acc.getRawData());
-        union data16_t
-        {
-            uint16_t data;
-            uint8_t parts[2];
-        } conv16;
+    conv.data1x32 = millis();
+    sendBuf[0] = conv.data4x8[3];
+    sendBuf[1] = conv.data4x8[2];
+    sendBuf[2] = conv.data4x8[1];
+    sendBuf[3] = conv.data4x8[0];
 
-        union data32_t
-        {
-            uint32_t millis;
-            uint8_t parts[4];
-        } conv32;
-        //    memcpy (buf, conv32.parts, 4);
-        conv32.millis = millis();
-        buf[0] = conv32.parts[0];
-        buf[1] = conv32.parts[1];
-        buf[2] = conv32.parts[2];
-        buf[3] = conv32.parts[3];
-        conv16.data = accData.acc_x;
-        buf[4] = conv16.parts[0];
-        buf[5] = conv16.parts[1];
-        conv16.data = accData.acc_y;
-        buf[6] = conv16.parts[0];
-        buf[7] = conv16.parts[1];
-        conv16.data = accData.acc_z;
-        buf[8] = conv16.parts[0];
-        buf[9] = conv16.parts[1];
-        buf[10] = 0;
-        buf[11] = 0;
+    uint16_t s = sendBufSize - 4;
+    acc.getData (sendBuf + 4, s);
 
-    //    snprintf (buf, 254, "%10ld:%4d,%4d,%4d\n", millis(), accData.acc_x,
-    //              accData.acc_y, accData.acc_z);
-    //    String data (buf);
+    udp.beginPacket (dest, port);
+    udp.write (sendBuf, s + 4);
+    auto ret = udp.endPacket();
 
-        udp.beginPacket (dest, port);
-        udp.write (buf, 12);
-        auto ret = udp.endPacket();
+    Serial.print (acc.posToWriteDataAt);
+    Serial.print ('\n');
 
-    //    auto ret = sendUdp (dest, port, data);
-    //    Serial.println (data);
+    if (ret == 0)
+    {
+        Serial.println (ret);
+    }
 
-        if (ret == 0)
-        {
-            Serial.println (ret);
-        }
-        */
+    delay (5);
 }

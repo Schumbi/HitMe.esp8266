@@ -53,35 +53,69 @@ void ISR_newdata (void)
         isr_func();
     }
 }
+
 // member to process isr data
 void BMA020::_isr_callback()
 {
-
+    // schreib das mal außerhalb einer int routine hin...
     beginTransmission (_adr);
     write (_ACC_Start_ADR);
     endTransmission();
-    uint8_t cnt = requestFrom (_adr, _ACC_uint8_t_Count);
 
-    auto ctr = isrDataCtr;
+    requestFrom (_adr, _ACC_uint8_t_Count);
 
-    for (; ctr < cnt; ctr++)
+    while (available())
     {
-        isrData[isrDataCtr + ctr] = read();
+        if (posToWriteDataAt >= getAccBuflen())
+        {
+            posToWriteDataAt = 0;
+        }
+
+        isrData[posToWriteDataAt] = read();
+        posToWriteDataAt ++;
+    }
+
+// latched interrupts
+//    uint8_t rah = readReg (BMA020REGISTER::E_CTRL_0A);
+//    rah |= (1 << 6);
+//    writeReg (BMA020REGISTER::E_CTRL_0A, rah);
+
+    ctrSaveToReadTo = posToWriteDataAt;
+}
+
+uint16_t BMA020::getCtrSaveToReadTo()
+{
+    uint16_t retVal;
+    noInterrupts();
+    retVal = ctrSaveToReadTo;
+    interrupts();
+    return retVal;
+}
+
+uint16_t BMA020::getAccBuflen()
+{
+    return  ACCBUFFLEN;
+}
+
+bool BMA020::getData (uint8_t* buf, uint16_t& size)
+{
+    uint16_t readUntil = getCtrSaveToReadTo();
+    uint16_t sctr = 0;
+
+    while ( (last != readUntil) && (sctr < size))
+    {
+        if (last >= getAccBuflen())
+        {
+            last = 0;
+        }
+
+        buf[sctr] = isrData[last];
+        sctr++;
+        last++;
 
     }
 
-    isrDataCtr += cnt;
-
-    if (isrDataCtr + _ACC_uint8_t_Count >= isrDataMax)
-    {
-        isrDataCtr = 0;
-    }
-
-    // latched interrupts
-    uint8_t rah = readReg (BMA020REGISTER::E_CTRL_0A);
-    rah |= (1 << 6);
-    writeReg (BMA020REGISTER::E_CTRL_0A, rah);
-
+    return true;
 }
 
 // access to registers
@@ -300,11 +334,12 @@ bool BMA020::setupInterruptNewDataMode (uint8_t interruptBMAOutPin, bool enable)
     attachInterrupt (digitalPinToInterrupt (interruptBMAOutPin), ISR_newdata,
                      RISING); // RISING
 
-    return setNewDataInterrupt (false);
+    return setNewDataInterrupt (enable);
 }
 
 BMA020::BMA020() : TwoWire(), _isSetup (false)
 {
+    isrData = (uint8_t*)malloc (ACCBUFFLEN * sizeof (uint8_t));
     setup();
 }
 
@@ -317,6 +352,7 @@ BMA020::BMA020 (uint8_t adr, uint8_t sda, uint8_t scl) : TwoWire(),
 bool BMA020::setup (uint8_t sda, uint8_t scl, uint8_t adr, BMA020RANGE range,
                     BMA020BANDWIDTH bandwidth)
 {
+    last = 0;
     TwoWire::begin (sda, scl);
     _adr = adr;
     // soft reset

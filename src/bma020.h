@@ -6,7 +6,7 @@
 #include <functional>
 
 const uint8_t BMA029ADDR = 0x38;
-const uint16_t ACCBUFFLEN = 1000;
+const uint16_t ACCBUFFLEN = 120;
 
 typedef void (*isr_t) ();
 
@@ -69,7 +69,7 @@ public:
         double_t acc_y;
     };
 
-    uint16_t isrDataCtr = 0;
+    uint8_t isrFlag;
 
 private:
     // setup state
@@ -87,11 +87,16 @@ private:
     // get internal data
     bool update_acc (raw_acc_t &data);
     // buffers for the interrupt data
-    uint8_t isrData[ACCBUFFLEN];
+    volatile uint8_t* isrData;
     //uint8_t isrDataCtr = 0;
     const uint16_t isrDataMax = ACCBUFFLEN;
     // isr callback "member"
     void _isr_callback();
+public:
+    volatile uint16_t posToWriteDataAt;
+    volatile uint16_t ctrSaveToReadTo;
+    uint16_t last;
+    volatile uint8_t canUpdateIntCtr;
 
 protected:
     // write data to register
@@ -123,6 +128,12 @@ public:
     virtual String getStatus();
     // setup interrupt
     bool setupInterruptNewDataMode (uint8_t interruptOutPin, bool enable);
+    // returns the current interrupt write position - 1
+    uint16_t getCtrSaveToReadTo();
+    // get bufflen
+    uint16_t getAccBuflen();
+    // return some data from internal buffer
+    bool getData (uint8_t* buf, uint16_t& size);
 
     //// conversions
     // get acc in dec data (converted from 2s complement)
