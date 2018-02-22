@@ -106,6 +106,7 @@ bool isBMAReadable (TwoWire & wire)
     uint8_t id = 0;
     uint8_t size = 1;
     readReg (wire, E_CHIPID, &id, size);
+    Serial.println (String ("ID: ") + id);
     return  id == 2;
 }
 
@@ -210,9 +211,8 @@ BMA020RANGE setRange (TwoWire &wire, BMA020RANGE range)
 }
 
 constexpr uint8_t _ACC_Start_ADR = 0x02u;
-constexpr uint8_t _ACC_uint8_t_Count = 4;
 
-volatile uint16_t isrBufSize = 120;
+const uint16_t isrBufSize = 300;
 volatile uint16_t isrBufCtr = 0;
 volatile uint16_t isrBufLastAccessCtr = 0;
 volatile uint8_t* isrBuf;
@@ -220,25 +220,20 @@ volatile uint8_t accessFlag = 1;
 
 void ISR_newdata (void)
 {
+    uint8_t buf[6];
+    uint8_t size = 6;
+    readReg (wire, BMA020REGISTER::E_DATA_LSBX, buf, size);
     // interrupt subroutine
-    //wire.beginTransmission (BMA029ADDR);
-    //wire.write (_ACC_Start_ADR);
-    //wire.endTransmission();
-    //wire.requestFrom (BMA029ADDR, _ACC_uint8_t_Count);
     uint8_t ctr = 0;
 
-    conv_t t;
-    t.data1x32 = millis();
-
-    //wire.available() &&
-    while (ctr < _ACC_uint8_t_Count)
+    while (ctr < size)
     {
         if (isrBufCtr >= isrBufSize)
         {
             isrBufCtr = 0;
         }
 
-        isrBuf[isrBufCtr] = t.data4x8[ctr];//wire.read();
+        isrBuf[isrBufCtr] = buf[ctr];
         isrBufCtr++;
         ctr++;
     }
@@ -247,16 +242,21 @@ void ISR_newdata (void)
     {
         isrBufLastAccessCtr = (isrBufCtr);
     }
-
 }
 
 void resetInterruptBMA (TwoWire &wire)
 {
+
+    uint8_t buf[6];
+    uint8_t size = 6;
+    readReg (wire, BMA020REGISTER::E_DATA_LSBX, buf, size);
+
     uint8_t r15h = 0;
-    uint8_t size = 1;
+    size = 1;
     readReg (wire, BMA020REGISTER::E_CTRL_0A, &r15h, size);
     r15h |=  (1 << 6);
     writeReg (wire, BMA020REGISTER::E_CTRL_0A, r15h);
+
 }
 
 // acc new data interrupt
@@ -273,16 +273,22 @@ void enableNewDataInterrupt (TwoWire &wire, uint8_t pin, bool enable)
     //r15h &= ~ (1 << _EnableAdv_INT_BIT);
     //r15h |= (1 << _SPI4_INT_BIT);
 
+    pinMode (pin, INPUT);
+    attachInterrupt (digitalPinToInterrupt (pin), ISR_newdata, RISING);
+
+    r15h |= (1 << _NewData_INT_BIT);// | (1 << _Lateched_INT_BIT);
+
     if (enable)
     {
         pinMode (pin, INPUT);
         attachInterrupt (digitalPinToInterrupt (pin), ISR_newdata, RISING);
+
         r15h |= (1 << _NewData_INT_BIT);// | (1 << _Lateched_INT_BIT);
     }
     else
     {
         detachInterrupt (digitalPinToInterrupt (pin));
-        r15h &= ~ ((1 << _NewData_INT_BIT) | (1 << _Lateched_INT_BIT));
+        r15h &= ~ ((1 << _NewData_INT_BIT));// | (1 << _Lateched_INT_BIT));
     }
 
     writeReg (wire, E_CONTROL_OP, r15h);
@@ -302,8 +308,6 @@ uint16_t getAccData (uint8_t* accData, uint16_t& size)
 {
     uint16_t lastAccessIsr = getLastAccessCtr();
     uint16_t sctr = 0;
-
-    //Serial.printf ("dataCtr: %4d lastAccessIsr: %d \n", dataCtr, lastAccessIsr);
 
     while ( (dataCtr != lastAccessIsr) && (sctr < size) )
     {
@@ -325,7 +329,8 @@ uint16_t getAccData (uint8_t* accData, uint16_t& size)
 void bmaSoftReset (TwoWire & wire)
 {
     writeReg (wire, BMA020REGISTER::E_CTRL_0A, 1 << 1);
-    delay (2);
+    delay (100);
+    resetInterruptBMA (wire);
 }
 
 void setup()
@@ -349,31 +354,27 @@ void setup()
     while (!isBMAReadable (wire))
     {
         Serial.print ('#');
-        delay (ms);
+        delay (5 * ms);
     }
 
     Serial.println ("BMA online!");
     delay (2 * ms);
     // configure
-    setBandwidth (wire, BMA020BANDWIDTH::BMA020_BW_190HZ);
+    setBandwidth (wire, BMA020BANDWIDTH::BMA020_BW_1500HZ);
     Serial.println ("BW configured!");
-    delay (ms);
     setRange (wire, BMA020RANGE::BMA020_RANGE_8G);
     Serial.println ("Range configured!");
-    delay (ms);
-    digitalWrite (BUILTIN_LED, !digitalRead (LED_BUILTIN));
+    enableNewDataInterrupt (wire, D5, true);
     udp.begin (port);
     Serial.printf ("UDP port %d\n", udp.localPort());
 
-    enableNewDataInterrupt (wire, D5, false);
-    delay (ms);
-    enableNewDataInterrupt (wire, D5, true);
+    resetInterruptBMA (wire);
 
-    system_print_meminfo();
 }
 
 void loop()
 {
+
     conv.data1x32 = millis();
     sendBuf[0] = conv.data4x8[3];
     sendBuf[1] = conv.data4x8[2];
@@ -387,16 +388,10 @@ void loop()
     udp.write (sendBuf, s + 4);
     auto ret = udp.endPacket();
 
-    uint8_t a;
-    uint8_t size = 1;
-    readReg (wire, BMA020REGISTER::E_CTRL_0A, &a, size);
-    Serial.printf ("%5s%5d HEAP:%6d 0a:%6d\r", " ", s + 4,
-                   system_get_free_heap_size(), a);
-
     if (ret == 0)
     {
         Serial.println (ret);
     }
 
-    delay (50);
+    resetInterruptBMA (wire);
 }
