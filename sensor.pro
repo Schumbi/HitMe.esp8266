@@ -56,6 +56,6 @@ DEFINES += "WEBSOCKETS_NETWORK_TYPE=NETWORK_ESP8266_ASYNC"
 
 OTHER_FILES += platformio.ini
 
-SOURCES += src/schalter.cpp
+SOURCES += src/sensor.cpp
 
-HEADERS += src/schalter.h
+HEADERS += src/sensor.h

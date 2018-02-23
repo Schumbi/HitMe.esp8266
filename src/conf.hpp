@@ -1,10 +1,10 @@
 #ifndef CONF_HPP
 #define CONF_HPP
 
-#include "../../pwd.hpp"
-#include "../../wlan.hpp"
+#include "../../../pwd.hpp"
+#include "../../../wlan.hpp"
 
-#define WEBNAME "schlag_1"
+#define WEBNAME "sensor_1"
 
 namespace net_dev
 {

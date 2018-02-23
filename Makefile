@@ -2,13 +2,13 @@
 SHELL := /bin/bash
 PATH := /usr/bin:$(PATH)
 BIN := .pioenvs/wemos_d1_mini/firmware.bin
-WEBNAME := flaschengeist_1.local
+WEBNAME := sensor_1.local
 WEBPATH := firmware
 
 all: run
 
 webupdate: run
-	curl -F "file=@$(BIN)" --user `cat ../user.cred` $(WEBNAME)/$(WEBPATH) > /dev/null
+	curl -F "file=@$(BIN)" --user `cat ../../user.cred` $(WEBNAME)/$(WEBPATH) > /dev/null
 
 upload:
 	platformio -f -c qtcreator run --target upload;

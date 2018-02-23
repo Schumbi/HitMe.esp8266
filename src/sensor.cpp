@@ -1,4 +1,4 @@
-#include "schalter.h"
+#include "sensor.h"
 
 #include <WiFiUdp.h>
 #include <Arduino.h>
@@ -6,7 +6,7 @@
 #include <osapi.h>
 #include <user_interface.h>
 
-#include "../../wlan.hpp"
+#include "./conf.hpp"
 
 void setup();
 void loop();
@@ -15,7 +15,7 @@ const uint8_t BMA029ADDR = 0x38;
 TwoWire wire;
 WiFiUDP udp;
 
-const IPAddress dest = IPAddress (192, 168, 1, 5);
+const IPAddress dest = IPAddress (192, 168, 1, 7);
 const uint16_t port = 10000;
 
 void setup_wifi()
@@ -53,7 +53,10 @@ union conv_t
     uint8_t data4x8[4];
 } conv;
 
-const uint16_t sendBufSize = 500;
+const uint8_t timeStamp = sizeof (uint32_t); // byte
+const uint8_t accPacket = 2 + 2 + 2; // 2x + 2y + 2z = 6 byte
+const uint8_t bufferedAccData = 30; //
+const uint16_t sendBufSize = timeStamp + (accPacket * bufferedAccData) ;
 uint8_t* sendBuf;
 uint16_t maxAccBuffLen;
 
@@ -70,7 +73,7 @@ uint8_t readReg (TwoWire &wire, uint8_t reg, uint8_t *buf, uint8_t &size)
     wire.beginTransmission (BMA029ADDR);
     wire.write (reg);
     wire.endTransmission();
-    wire.requestFrom (BMA029ADDR, (uint8_t)size);
+    wire.requestFrom ((uint8_t)BMA029ADDR, (size_t)size, (bool)true);
 
     uint8_t ctr = 0;
 
@@ -212,51 +215,45 @@ BMA020RANGE setRange (TwoWire &wire, BMA020RANGE range)
 
 constexpr uint8_t _ACC_Start_ADR = 0x02u;
 
-const uint16_t isrBufSize = 300;
-volatile uint16_t isrBufCtr = 0;
-volatile uint16_t isrBufLastAccessCtr = 0;
-volatile uint8_t* isrBuf;
-volatile uint8_t accessFlag = 1;
+const uint16_t accDataBufSize = sendBufSize - timeStamp;
+uint8_t* accDataBuf;
 
-void ISR_newdata (void)
+bool tryFetchNewData (uint8_t* accBuf, uint16_t& curCount, uint16_t bufSize)
 {
-    uint8_t buf[6];
-    uint8_t size = 6;
+    bool dataAvail = false;
+
+    const uint8_t maxReadSize = accPacket;
+    uint8_t buf[maxReadSize];
+    uint8_t size = maxReadSize;
     readReg (wire, BMA020REGISTER::E_DATA_LSBX, buf, size);
-    // interrupt subroutine
-    uint8_t ctr = 0;
 
-    while (ctr < size)
+    if (size == 6)
     {
-        if (isrBufCtr >= isrBufSize)
+        dataAvail = ((buf[0] & 1) + (buf[2] & 1) + (buf[4] & 1)) == 3;
+
+        if (dataAvail)
         {
-            isrBufCtr = 0;
+            curCount = (curCount + size) >= bufSize ? 0 : curCount;
+            memcpy (accBuf + curCount, buf, size);
+            curCount += size;
         }
-
-        isrBuf[isrBufCtr] = buf[ctr];
-        isrBufCtr++;
-        ctr++;
     }
 
-    if (accessFlag == 1)
-    {
-        isrBufLastAccessCtr = (isrBufCtr);
-    }
+    // return true, if buff is full
+    return (curCount + size) == bufSize;
 }
 
 void resetInterruptBMA (TwoWire &wire)
 {
-
+    // read all data out once
     uint8_t buf[6];
     uint8_t size = 6;
     readReg (wire, BMA020REGISTER::E_DATA_LSBX, buf, size);
+}
 
-    uint8_t r15h = 0;
-    size = 1;
-    readReg (wire, BMA020REGISTER::E_CTRL_0A, &r15h, size);
-    r15h |=  (1 << 6);
-    writeReg (wire, BMA020REGISTER::E_CTRL_0A, r15h);
-
+void ISR_newdata()
+{
+    ;
 }
 
 // acc new data interrupt
@@ -276,8 +273,6 @@ void enableNewDataInterrupt (TwoWire &wire, uint8_t pin, bool enable)
     pinMode (pin, INPUT);
     attachInterrupt (digitalPinToInterrupt (pin), ISR_newdata, RISING);
 
-    r15h |= (1 << _NewData_INT_BIT);// | (1 << _Lateched_INT_BIT);
-
     if (enable)
     {
         pinMode (pin, INPUT);
@@ -293,37 +288,6 @@ void enableNewDataInterrupt (TwoWire &wire, uint8_t pin, bool enable)
 
     writeReg (wire, E_CONTROL_OP, r15h);
     resetInterruptBMA (wire);
-}
-
-uint16_t getLastAccessCtr()
-{
-    accessFlag = 0;
-    auto lastAccessCtr = isrBufLastAccessCtr;
-    accessFlag = 1;
-    return lastAccessCtr;
-}
-
-uint16_t dataCtr = 0;
-uint16_t getAccData (uint8_t* accData, uint16_t& size)
-{
-    uint16_t lastAccessIsr = getLastAccessCtr();
-    uint16_t sctr = 0;
-
-    while ( (dataCtr != lastAccessIsr) && (sctr < size) )
-    {
-        if (dataCtr >= isrBufSize)
-        {
-            dataCtr = 0;
-        }
-
-        accData[sctr] = isrBuf[dataCtr];
-
-        dataCtr++;
-        sctr ++;
-    }
-
-    size = sctr;
-    return size;
 }
 
 void bmaSoftReset (TwoWire & wire)
@@ -346,7 +310,7 @@ void setup()
     wire.begin (SDA, SCL);
     bmaSoftReset (wire);
 
-    isrBuf = (uint8_t*)malloc (isrBufSize * sizeof (uint8_t));
+    accDataBuf = (uint8_t*)malloc (accDataBufSize * sizeof (uint8_t));
     sendBuf = (uint8_t*)malloc (sendBufSize * sizeof (uint8_t));
     int ms = 100;
 
@@ -360,38 +324,44 @@ void setup()
     Serial.println ("BMA online!");
     delay (2 * ms);
     // configure
-    setBandwidth (wire, BMA020BANDWIDTH::BMA020_BW_1500HZ);
+    setBandwidth (wire, BMA020BANDWIDTH::BMA020_BW_25HZ);
     Serial.println ("BW configured!");
     setRange (wire, BMA020RANGE::BMA020_RANGE_8G);
     Serial.println ("Range configured!");
-    enableNewDataInterrupt (wire, D5, true);
+    enableNewDataInterrupt (wire, D5, false);
     udp.begin (port);
     Serial.printf ("UDP port %d\n", udp.localPort());
 
-    resetInterruptBMA (wire);
+    //resetInterruptBMA (wire);
 
 }
 
+uint16_t accDataBufCtr = 0;
 void loop()
 {
-
-    conv.data1x32 = millis();
-    sendBuf[0] = conv.data4x8[3];
-    sendBuf[1] = conv.data4x8[2];
-    sendBuf[2] = conv.data4x8[1];
-    sendBuf[3] = conv.data4x8[0];
-
-    uint16_t s = sendBufSize - 4;
-    getAccData (sendBuf + 4, s);
-
-    udp.beginPacket (dest, port);
-    udp.write (sendBuf, s + 4);
-    auto ret = udp.endPacket();
-
-    if (ret == 0)
+    if (tryFetchNewData (accDataBuf, accDataBufCtr, accDataBufSize))
     {
-        Serial.println (ret);
-    }
+        // get time
+        conv.data1x32 = micros();
+        // cpy timestamp
+        memcpy (sendBuf, conv.data4x8, timeStamp);
+        // cpy acc data
+        memcpy (sendBuf + timeStamp, accDataBuf, accDataBufSize);
+        // send stuff
+        //uint32_t bef = micros();
+        udp.beginPacket (dest, port);
+        udp.write (sendBuf, sendBufSize);
+        auto ret = udp.endPacket();
+        //uint32_t af = micros();
 
-    resetInterruptBMA (wire);
+        //Serial.println (af - bef);
+
+        if (ret == 0)
+        {
+            Serial.println ("Packet not send!");
+        }
+
+        // reset data ctr
+        accDataBufCtr = 0;
+    }
 }
