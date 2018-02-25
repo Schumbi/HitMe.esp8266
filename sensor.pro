@@ -56,6 +56,11 @@ DEFINES += "WEBSOCKETS_NETWORK_TYPE=NETWORK_ESP8266_ASYNC"
 
 OTHER_FILES += platformio.ini
 
-SOURCES += src/sensor.cpp
+SOURCES += src/sensor.cpp \
+    src/commander.cpp \
+    src/bma020.cpp
 
-HEADERS += src/sensor.h
+HEADERS += src/sensor.h \
+    src/commander.h \
+    src/cmd_set.h \
+    src/bma020.h
