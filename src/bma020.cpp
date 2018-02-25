@@ -156,3 +156,16 @@ bool BMA020::tryFetchNewData (uint8_t* accBuf, uint16_t& curCount,
     // return true, if buff is full
     return (curCount + size) == bufSize;
 }
+
+String BMA020::getConfig()
+{
+    if (isBMAReadable() == false)
+    {
+        return String();
+    }
+
+    String config = "{\"Range\":\"" + String (getRange()) +
+                    "\",\"Bandwidth\":\"" + getBandwidth() + "\"}";
+    return  config;
+
+}

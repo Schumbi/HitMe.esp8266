@@ -7,10 +7,6 @@ static const uint8_t cmd_max_Size = 128;
 extern const uint8_t cmd_max_Size;
 
 class Commander {
-
-    bool reboot();
-    bool _started;
-
 public:
 
     struct command_t
@@ -22,9 +18,20 @@ public:
         String err = "";
     };
 
+private:
+    bool _started;
+
+    void validateCommandWithNumericArg (command_t &cmd);
+
+    bool reboot();
+    void getBMAConfig (command_t &cmd);
+    void setBMARange (command_t &cmd);
+    void setBMABandWidth (command_t &cmd);
+
+public:
     Commander();
     command_t parse (String inp);
-    bool execute (const command_t &cmd);
+    bool execute (command_t &cmd);
     bool started();
     void printHelp();
 };

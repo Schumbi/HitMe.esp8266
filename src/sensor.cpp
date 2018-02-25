@@ -173,13 +173,19 @@ void loop()
 
             if (cmd_struct.ret.length() > 0)
             {
-                udpCmd.write (cmd_struct.ret.c_str());
+                String msg = "{\"ret\":\"" + cmd_struct.ret + "\"}";
+                udpCmd.write (msg.c_str());
             }
         }
         else
         {
             udpCmd.write (udpNack);
-            udpCmd.write (cmd_struct.err.c_str());
+
+            if (cmd_struct.err.length() > 0)
+            {
+                String msg = "{\"err\":\"" + cmd_struct.err + "\"}";
+                udpCmd.write (msg.c_str());
+            }
         }
 
         udpCmd.endPacket();

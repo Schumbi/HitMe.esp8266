@@ -41,6 +41,7 @@ public:
     bool isBMAReadable ();
     bool tryFetchNewData (uint8_t* accBuf, uint16_t& curCount,
                           uint16_t bufSize);
+    String getConfig();
 };
 
 #if !defined(NO_GLOBAL_INSTANCES) && !defined(NO_GLOBAL_TWOWIRE)
