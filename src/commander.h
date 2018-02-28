@@ -1,6 +1,8 @@
 #ifndef COMMANDER_H
 #define COMMANDER_H
 
+#include "sensor.h"
+
 #include "cmd_set.h"
 
 static const uint8_t cmd_max_Size = 128;

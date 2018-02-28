@@ -19,8 +19,8 @@ WiFiUDP udpCmd;
 const IPAddress dest = IPAddress (192, 168, 1, 7);
 const uint16_t udpDataPort = 10000;
 const uint16_t udpCmdPort = 10001;
-const char* udpAck = "{00:1;}";
-const char* udpNack = "{00:0;}";
+const char* udpAck = "{F0:0}";
+const char* udpNack = "{F0:1}";
 
 void setup_wifi()
 {
@@ -119,7 +119,6 @@ void loop()
 {
     if (commander.started() == true)
     {
-
         if (Bma020.tryFetchNewData (accDataBuf, accDataBufCtr, accDataBufSize))
         {
             // get time

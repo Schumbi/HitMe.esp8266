@@ -271,6 +271,7 @@ bool Commander::execute (command_t &cmd)
 
     case cmd_start_acc:
         _started = cmd.arg == String ('1');
+        cmd.ret = String ("Set started to ") + _started;
         return cmd.isValid;
         break;
 
@@ -303,11 +304,12 @@ bool Commander::started()
 
 void Commander::printHelp()
 {
-    Serial.printf ("%-30s:%4d\n%-30s:%4d\n%-30s:%4d\n%-30s:%4d\n%-30s:%4d\n%-30s:%4d\n",
+    Serial.printf ("%-30s:%4d\n%-30s:%4d\n%-30s:%4d\n%-30s:%4d\n%-30s:%4d\n%-30s:%4d\n%s",
                    "Start ACC (Arg: 0/1)", commands::cmd_start_acc,
                    "Reset BMA", commands::cmd_reset_acc,
                    "Print BMA config", commands::cmd_get_config,
                    "Set BMA range (Arg:0-2)", commands::cmd_set_range,
                    "Set BMA bandwidth (Arg:0-6)", commands::cmd_set_bandwidth,
-                   "Reboot", commands::cmd_reboot);
+                   "Reboot", commands::cmd_reboot,
+                   "\nConnection: nc -n -u 192.168.1.5 10001\n");
 }

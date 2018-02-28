@@ -7,7 +7,6 @@ else {
 
 
 INCLUDEPATH += "$$(PWD)/src"
-INCLUDEPATH += "$$(PWD)/lib/RTClib"
 INCLUDEPATH += "$${HOMEDIR}/.platformio/packages/framework-arduinoespressif8266/tools/sdk/include"
 INCLUDEPATH += "$${HOMEDIR}/.platformio/packages/framework-arduinoespressif8266/tools/sdk/lwip/include"
 INCLUDEPATH += "$${HOMEDIR}/.platformio/packages/framework-arduinoespressif8266/cores/esp8266"
