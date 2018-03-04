@@ -57,14 +57,15 @@ union conv_t
     uint8_t data4x8[4];
 } conv;
 
-const uint8_t timeStamp = sizeof (uint32_t); // byte
+const uint8_t sizeOfTimeStamp = sizeof (uint32_t); // byte
+const uint8_t sizeOfPacketId = sizeof (uint32_t); // byte
 
-const uint8_t bufferedAccData = 30; //
-const uint16_t sendBufSize = timeStamp + (BMA020::accPacket * bufferedAccData) ;
+const uint8_t bufferedAccData = 30;
+const uint16_t accDataBufSize = BMA020::accPacket * bufferedAccData;
+// start and end of data block, packetid and acc data buffer size
+const uint16_t sendBufSize = sizeOfTimeStamp + sizeOfTimeStamp +
+                             sizeOfPacketId + accDataBufSize;
 uint8_t* sendBuf;
-
-
-const uint16_t accDataBufSize = sendBufSize - timeStamp;
 uint8_t* accDataBuf;
 
 void setup()
@@ -114,21 +115,42 @@ void setup()
 }
 
 uint16_t accDataBufCtr = 0;
+uint32_t packetCtr = 0;
 bool start = false;
+uint32_t startTime = 0;
 void loop()
 {
     if (commander.started() == true)
     {
+        if (startTime == 0)
+        {
+            // set start time, when it was reset
+            startTime = micros();
+        }
+
         if (Bma020.tryFetchNewData (accDataBuf, accDataBufCtr, accDataBufSize))
         {
-            // get time
-            conv.data1x32 = micros();
-            // cpy timestamp
-            memcpy (sendBuf, conv.data4x8, timeStamp);
+            // data measuring completed for this block
+            uint8_t cpyStart = 0;
+            // cpy start time
+            conv.data1x32 = startTime;
+            memcpy (sendBuf + cpyStart, conv.data4x8, sizeOfTimeStamp);
+            cpyStart += sizeof (startTime);
+            // reset start time
+            startTime = 0;
+            // get time and set end time
+            uint32_t endtime = micros();
+            conv.data1x32 = endtime;
+            memcpy (sendBuf + cpyStart, conv.data4x8, sizeOfTimeStamp);
+            cpyStart += sizeof (endtime);
+            // cpy packet id
+            conv.data1x32 = packetCtr;
+            memcpy (sendBuf + cpyStart, conv.data4x8, sizeOfPacketId);
+            cpyStart += sizeof (packetCtr);
             // cpy acc data
-            memcpy (sendBuf + timeStamp, accDataBuf, accDataBufSize);
+            memcpy (sendBuf + cpyStart, accDataBuf, accDataBufSize);
             // send stuff
-            //uint32_t bef = micros();
+            packetCtr++;
             udpData.beginPacket (dest, udpDataPort);
             udpData.write (sendBuf, sendBufSize);
             auto ret = udpData.endPacket();
@@ -158,6 +180,7 @@ void loop()
         if (cmd_struct.isValid)
         {
             commander.execute (cmd_struct);
+            Serial.println (cmd_struct.cmd);
         }
         else
         {
