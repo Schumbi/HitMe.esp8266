@@ -62,4 +62,5 @@ SOURCES += src/sensor.cpp \
 HEADERS += src/sensor.h \
     src/commander.h \
     src/cmd_set.h \
-    src/bma020.h
+    src/bma020.h \
+    src/conf.hpp
