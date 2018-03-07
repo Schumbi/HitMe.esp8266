@@ -16,7 +16,7 @@ void loop();
 WiFiUDP udpData;
 WiFiUDP udpCmd;
 
-const IPAddress dest = IPAddress (192, 168, 1, 7);
+const IPAddress dest = IPAddress (192, 168, 1, 5);
 const uint16_t udpDataPort = 10000;
 const uint16_t udpCmdPort = 10001;
 const char* udpAck = "{F0:0}";
@@ -206,6 +206,7 @@ void loop()
             if (cmd_struct.err.length() > 0)
             {
                 String msg = "{\"err\":\"" + cmd_struct.err + "\"}";
+                Serial.println (msg);
                 udpCmd.write (msg.c_str());
             }
         }
