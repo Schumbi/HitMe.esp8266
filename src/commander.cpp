@@ -2,6 +2,7 @@
 #include "bma020.h"
 
 #include <Arduino.h>
+#include <ArduinoJson.hpp>
 
 bool Commander::reboot()
 {
@@ -78,13 +79,8 @@ void Commander::setBMARange (Commander::command_t &cmd)
         break;
 
     default:
-        isValid = false;
-    }
-
-    if (isValid == false)
-    {
         cmd.err = F ("Arg is not in range!");
-        cmd.isValid = false;
+        isValid = false;
         return;
     }
 
@@ -97,7 +93,7 @@ void Commander::setBMARange (Commander::command_t &cmd)
 
     Bma020.setRange ((BMA020::BMA020RANGE)range);
 
-    cmd.ret = String ("{\"range\":\"") +  Bma020.getRange() + "\"}";
+    cmd.ret = String (Bma020.getRange());
     cmd.isValid = true;
 
 }
@@ -128,11 +124,6 @@ void Commander::setBMABandWidth (Commander::command_t &cmd)
         break;
 
     default:
-        isValid = false;
-    }
-
-    if (isValid == false)
-    {
         cmd.err = F ("Arg is not in range!");
         cmd.isValid = false;
         return;
@@ -146,7 +137,7 @@ void Commander::setBMABandWidth (Commander::command_t &cmd)
     }
 
     Bma020.setBandwidth ((BMA020::BMA020BANDWIDTH)bw);
-    cmd.ret = String ("{\"bandwidth\":\"") +  Bma020.getBandwidth() + "\"}";
+    cmd.ret = String (Bma020.getBandwidth());
     cmd.isValid = true;
 }
 
@@ -157,6 +148,10 @@ Commander::command_t Commander::parse (String inp)
 {
     command_t cmd;
     cmd.isValid = false;
+    cmd.arg = "";
+    cmd.err = "";
+    cmd.msg = "";
+    cmd.ret = "";
 
     if (inp.length() > cmd_max_Size)
     {
@@ -165,57 +160,27 @@ Commander::command_t Commander::parse (String inp)
         return cmd;
     }
 
-    const char startChar = '{';
-    const char endChar = '}';
+    using namespace ArduinoJson;
+    StaticJsonBuffer<cmd_max_Size> jsonBuffer;
+    JsonObject& root = jsonBuffer.parseObject (inp);
 
-    if (inp[0] != startChar && inp[inp.length() - 1] != endChar)
+    if (!root.success())
     {
-        cmd.err = F ("Not a vaild command! {<cmd>:<arg>}");
+        cmd.err = F ("Could not parse json!");
         cmd.isValid = false;
         return cmd;
     }
 
-    inp.remove (inp.indexOf (endChar));
-    inp.remove (inp.lastIndexOf (startChar), 1);
+    JsonVariant var = root["cmd"];
 
-    char sepChar = ':';
-    int sepPos = inp.indexOf (sepChar);
-
-    if (sepPos == -1)
+    if ((!var.success()) || (!var.is<int>()))
     {
-        cmd.err = F ("Seperator char ':' mising!");
+        cmd.err = F ("Could not parse json!");
         cmd.isValid = false;
         return cmd;
     }
 
-
-    if (inp.length() <= 2)
-    {
-        cmd.err = F ("Command is invalid!");
-        cmd.isValid = false;
-        return cmd;
-    }
-
-    String cmdS;
-
-    for (uint8_t ctr = 0; ctr < sepPos; ctr++ )
-    {
-        char c = inp[ctr];
-
-        if (isDigit (c))
-        {
-            cmdS += inp[ctr];
-        }
-    }
-
-    if (cmdS.length() == 0)
-    {
-        cmd.err = F ("No command found! (Is empty)");
-        cmd.isValid = false;
-        return cmd;
-    }
-
-    int t = cmdS.toInt();
+    int t = var.as<int>();
 
     bool isAValidCmd = false;
 
@@ -243,13 +208,14 @@ Commander::command_t Commander::parse (String inp)
 
     cmd.cmd = (commands::ctl_commands)t;
 
-    for (uint8_t ctr = sepPos + 1; ctr < inp.length(); ctr++ )
+    var = root["args"];
+
+    if (var.success())
     {
-        cmd.arg += inp[ctr];
+        cmd.arg = String (var.as<char*>());
     }
 
     cmd.isValid = true;
-
     return cmd;
 }
 
@@ -266,12 +232,11 @@ bool Commander::execute (command_t &cmd)
 
     case cmd_reset_acc:
         Bma020.resetAcc();
-        return  cmd.isValid;
+        return cmd.isValid;
         break;
 
     case cmd_start_acc:
-        _started = cmd.arg == String ('1');
-        cmd.ret = String ("Set started to ") + _started;
+        startStopMeasure (cmd);
         return cmd.isValid;
         break;
 
@@ -295,6 +260,29 @@ bool Commander::execute (command_t &cmd)
     }
 
     return ret;
+}
+
+void Commander::startStopMeasure (command_t &cmd)
+{
+    int arg = atoi (cmd.arg.c_str());
+    cmd.isValid = false;
+
+    switch (arg)
+    {
+    case 0:
+        _started = false;
+        cmd.isValid = true;
+        break;
+
+    case 1:
+        _started = true;
+        cmd.isValid = true;
+        break;
+
+    default:
+        _started = false;
+        cmd.err = F ("Could not parse arguments (0 -> off; 1 -> on)!");
+    }
 }
 
 bool Commander::started()

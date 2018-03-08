@@ -6,7 +6,7 @@
 #include <WiFiUdp.h>
 #include <Arduino.h>
 
-#include <json/jsonparse.h>
+#include <ArduinoJson.hpp>
 
 #include "./conf.hpp"
 
@@ -19,8 +19,8 @@ WiFiUDP udpCmd;
 const IPAddress dest = IPAddress (192, 168, 1, 5);
 const uint16_t udpDataPort = 10000;
 const uint16_t udpCmdPort = 10001;
-const char* udpAck = "{F0:0}";
-const char* udpNack = "{F0:1}";
+const char* udpAck = "0";
+const char* udpNack = "1";
 
 void setup_wifi()
 {
@@ -114,12 +114,15 @@ void setup()
     Serial.printf ("Start looping!\n");
 }
 
+uint8_t statusCtr = 0;
 uint16_t accDataBufCtr = 0;
 uint32_t packetCtr = 0;
 bool start = false;
 uint32_t startTime = 0;
 void loop()
 {
+    using namespace ArduinoJson;
+
     if (commander.started() == true)
     {
         if (startTime == 0)
@@ -136,8 +139,6 @@ void loop()
             conv.data1x32 = startTime;
             memcpy (sendBuf + cpyStart, conv.data4x8, sizeOfTimeStamp);
             cpyStart += sizeof (startTime);
-            // reset start time
-            startTime = 0;
             // get time and set end time
             uint32_t endtime = micros();
             conv.data1x32 = endtime;
@@ -160,16 +161,14 @@ void loop()
                 Serial.println ("Packet not send!");
             }
 
+            // reset start time
+            startTime = 0;
             // reset data ctr
             accDataBufCtr = 0;
         }
     }
-    else
-    {
-        delay (10);
-    }
 
-    // commander
+    // check and parse ctrl packets
     uint16_t len = udpCmd.parsePacket();
 
     if (len)
@@ -180,37 +179,66 @@ void loop()
         if (cmd_struct.isValid)
         {
             commander.execute (cmd_struct);
-            Serial.println (cmd_struct.cmd);
+            Serial.println (String ("Executing ") + cmd_struct.cmd);
         }
         else
         {
             Serial.println (cmd_struct.err);
         }
 
+        StaticJsonBuffer<cmd_max_Size> jsonBuffer;
+        JsonObject& root = jsonBuffer.createObject();
+
+        root["type"] = 1;
+        root["error"] = cmd_struct.isValid ? udpAck : udpNack;
+        root["cmd"] = cmd_struct.cmd;
+        root["arg"] = cmd_struct.arg;
+        root["ret"] = cmd_struct.ret;
+        root["err"] = cmd_struct.err;
+        root["msg"] = cmd_struct.msg;
+        root["readable"] = Bma020.isBMAReadable();
+        root["range"].set<int> (Bma020.getRange());
+        root["bandwidth"].set<int> (Bma020.getBandwidth());
+        String buf;
+        root.printTo (buf);
         udpCmd.beginPacket (udpCmd.remoteIP(), udpCmd.remotePort());
-
-        if (cmd_struct.isValid)
-        {
-            udpCmd.write (udpAck);
-
-            if (cmd_struct.ret.length() > 0)
-            {
-                String msg = "{\"ret\":\"" + cmd_struct.ret + "\"}";
-                udpCmd.write (msg.c_str());
-            }
-        }
-        else
-        {
-            udpCmd.write (udpNack);
-
-            if (cmd_struct.err.length() > 0)
-            {
-                String msg = "{\"err\":\"" + cmd_struct.err + "\"}";
-                Serial.println (msg);
-                udpCmd.write (msg.c_str());
-            }
-        }
-
+        udpCmd.write (buf.c_str());
         udpCmd.endPacket();
+    }
+
+    // send state is not started, send sensor state
+    if (commander.started() == false)
+    {
+        if (statusCtr > 100)
+        {
+            StaticJsonBuffer<cmd_max_Size> jsonBuffer;
+            JsonObject& root = jsonBuffer.createObject();
+            root["type"] = 0;
+            root["readable"] = Bma020.isBMAReadable();
+            root["range"].set<int> (Bma020.getRange());
+            root["bandwidth"].set<int> (Bma020.getBandwidth());
+            root["micros"] = micros();
+            root["millis"] = micros();
+            String buf;
+            root.printTo (buf);
+            udpCmd.beginPacket (udpCmd.remoteIP(), udpCmd.remotePort());
+            udpCmd.write (buf.c_str());
+            auto ret = udpCmd.endPacket();
+
+            if (ret == 0)
+            {
+                Serial.println ("Packet not send!");
+            }
+            else
+            {
+                root.printTo (Serial);
+                Serial.println();
+            }
+
+            statusCtr = 0;
+        }
+
+        statusCtr++;
+        delay (10);
     }
 }

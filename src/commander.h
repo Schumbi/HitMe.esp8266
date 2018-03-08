@@ -5,7 +5,7 @@
 
 #include "cmd_set.h"
 
-static const uint8_t cmd_max_Size = 128;
+static const uint8_t cmd_max_Size = 200;
 extern const uint8_t cmd_max_Size;
 
 class Commander {
@@ -18,6 +18,7 @@ public:
         String arg = "";
         String ret = "";
         String err = "";
+        String msg = "";
     };
 
 private:
@@ -29,6 +30,7 @@ private:
     void getBMAConfig (command_t &cmd);
     void setBMARange (command_t &cmd);
     void setBMABandWidth (command_t &cmd);
+    void startStopMeasure (command_t &cmd);
 
 public:
     Commander();
@@ -36,6 +38,7 @@ public:
     bool execute (command_t &cmd);
     bool started();
     void printHelp();
+
 };
 
 #if !defined(NO_GLOBAL_INSTANCES) && !defined(NO_GLOBAL_TWOWIRE)
