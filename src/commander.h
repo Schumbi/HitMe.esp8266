@@ -2,11 +2,10 @@
 #define COMMANDER_H
 
 #include "sensor.h"
+#include "sensortypes.h"
 
-#include "cmd_set.h"
-
-static const uint8_t cmd_max_Size = 200;
-extern const uint8_t cmd_max_Size;
+static const uint16_t cmd_max_Size = 300;
+extern const uint16_t cmd_max_Size;
 
 class Commander {
 public:

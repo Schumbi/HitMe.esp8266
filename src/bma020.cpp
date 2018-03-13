@@ -4,6 +4,7 @@
 
 #include <Arduino.h>
 
+
 BMA020::BMA020() : TwoWire ()
 {
 }
@@ -57,7 +58,7 @@ constexpr uint8_t _bit_mask_Bandwidth = (1 << _BW0) | (1 << _BW1) | (1 << _BW2);
 constexpr uint8_t att_mask = (uint8_t) ((1 << _DONTUSE0) | (1 << _DONTUSE1) |
                                         (1 << _DONTUSE2));
 
-bool BMA020::setBandwidth (BMA020::BMA020BANDWIDTH bandwidth)
+bool BMA020::setBandwidth (BMA020BANDWIDTH bandwidth)
 {
     uint8_t buf;
     uint8_t size = 1;
@@ -80,7 +81,7 @@ bool BMA020::setBandwidth (BMA020::BMA020BANDWIDTH bandwidth)
     return bw == bandwidth;
 }
 
-BMA020::BMA020BANDWIDTH BMA020::getBandwidth ()
+BMA020BANDWIDTH BMA020::getBandwidth ()
 {
     uint8_t buf;
     uint8_t size = 1;
@@ -93,7 +94,7 @@ constexpr uint8_t _RANGE0 = 0x3u;
 constexpr uint8_t _RANGE1 = 0x4u;
 constexpr uint8_t _bit_mask_Range = (1 << _RANGE0) | (1 << _RANGE1);
 
-bool BMA020::setRange (BMA020::BMA020RANGE range)
+bool BMA020::setRange (BMA020RANGE range)
 {
     uint8_t reg_14h;
     uint8_t size = 1;
@@ -115,7 +116,7 @@ bool BMA020::setRange (BMA020::BMA020RANGE range)
     return rg == range;
 }
 
-BMA020::BMA020RANGE BMA020::getRange ()
+BMA020RANGE BMA020::getRange ()
 {
     uint8_t reg_14h;
     uint8_t size = 1;

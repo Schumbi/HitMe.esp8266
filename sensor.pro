@@ -64,4 +64,5 @@ HEADERS += src/sensor.h \
     src/commander.h \
     src/cmd_set.h \
     src/bma020.h \
-    src/conf.hpp
+    src/conf.hpp \
+    src/sensortypes.h

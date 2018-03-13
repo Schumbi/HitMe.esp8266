@@ -53,12 +53,10 @@ void Commander::validateCommandWithNumericArg (Commander::command_t &cmd)
     }
 
     cmd.isValid = true;
-
 }
 
 void Commander::setBMARange (Commander::command_t &cmd)
 {
-
     validateCommandWithNumericArg (cmd);
     bool isValid = cmd.isValid;
 
@@ -72,9 +70,9 @@ void Commander::setBMARange (Commander::command_t &cmd)
 
     switch (range)
     {
-    case BMA020::BMA020RANGE::BMA020_RANGE_2G:
-    case BMA020::BMA020RANGE::BMA020_RANGE_4G:
-    case BMA020::BMA020RANGE::BMA020_RANGE_8G:
+    case sensor::BMA020RANGE::BMA020_RANGE_2G:
+    case sensor::BMA020RANGE::BMA020_RANGE_4G:
+    case sensor::BMA020RANGE::BMA020_RANGE_8G:
         isValid = true;
         break;
 
@@ -91,7 +89,7 @@ void Commander::setBMARange (Commander::command_t &cmd)
         return;
     }
 
-    Bma020.setRange ((BMA020::BMA020RANGE)range);
+    Bma020.setRange ((sensor::BMA020RANGE)range);
 
     cmd.ret = String (Bma020.getRange());
     cmd.isValid = true;
@@ -113,13 +111,13 @@ void Commander::setBMABandWidth (Commander::command_t &cmd)
 
     switch (bw)
     {
-    case BMA020::BMA020BANDWIDTH::BMA020_BW_25HZ:
-    case BMA020::BMA020BANDWIDTH::BMA020_BW_50HZ:
-    case BMA020::BMA020BANDWIDTH::BMA020_BW_100HZ:
-    case BMA020::BMA020BANDWIDTH::BMA020_BW_190HZ:
-    case BMA020::BMA020BANDWIDTH::BMA020_BW_375HZ:
-    case BMA020::BMA020BANDWIDTH::BMA020_BW_750HZ:
-    case BMA020::BMA020BANDWIDTH::BMA020_BW_1500HZ:
+    case sensor::BMA020BANDWIDTH::BMA020_BW_25HZ:
+    case sensor::BMA020BANDWIDTH::BMA020_BW_50HZ:
+    case sensor::BMA020BANDWIDTH::BMA020_BW_100HZ:
+    case sensor::BMA020BANDWIDTH::BMA020_BW_190HZ:
+    case sensor::BMA020BANDWIDTH::BMA020_BW_375HZ:
+    case sensor::BMA020BANDWIDTH::BMA020_BW_750HZ:
+    case sensor::BMA020BANDWIDTH::BMA020_BW_1500HZ:
         isValid = true;
         break;
 
@@ -136,7 +134,7 @@ void Commander::setBMABandWidth (Commander::command_t &cmd)
         return;
     }
 
-    Bma020.setBandwidth ((BMA020::BMA020BANDWIDTH)bw);
+    Bma020.setBandwidth ((sensor::BMA020BANDWIDTH)bw);
     cmd.ret = String (Bma020.getBandwidth());
     cmd.isValid = true;
 }
@@ -164,18 +162,41 @@ Commander::command_t Commander::parse (String inp)
     StaticJsonBuffer<cmd_max_Size> jsonBuffer;
     JsonObject& root = jsonBuffer.parseObject (inp);
 
+    root.printTo (Serial);
+    Serial.println();
+
+    String jparseerror (F ("Could not parse json!"));
+
     if (!root.success())
     {
-        cmd.err = F ("Could not parse json!");
+        cmd.err = jparseerror;
         cmd.isValid = false;
         return cmd;
     }
 
-    JsonVariant var = root["cmd"];
+    JsonVariant var = root["type"];
+
+    if (!var.success() || (!var.is<int>()))
+    {
+        cmd.err = jparseerror;
+        cmd.isValid = false;
+        return cmd;
+    }
+
+    int ty = root["type"];
+
+    if (static_cast<sensor::MSGTYPE> (ty) != sensor::MSGTYPE::REQUEST)
+    {
+        cmd.err =  F ("Not a control package!");
+        cmd.isValid = false;
+        return cmd;
+    }
+
+    var = root["cmd"];
 
     if ((!var.success()) || (!var.is<int>()))
     {
-        cmd.err = F ("Could not parse json!");
+        cmd.err =  jparseerror;
         cmd.isValid = false;
         return cmd;
     }
@@ -292,12 +313,15 @@ bool Commander::started()
 
 void Commander::printHelp()
 {
-    Serial.printf ("%-30s:%4d\n%-30s:%4d\n%-30s:%4d\n%-30s:%4d\n%-30s:%4d\n%-30s:%4d\n%s",
+    String ip = WiFi.localIP().toString();
+    Serial.printf ("%-30s:%4d\n%-30s:%4d\n%-30s:%4d\n"
+                   "%-30s:%4d\n%-30s:%4d\n%-30s:%4d\n%s\n%s\n",
                    "Start ACC (Arg: 0/1)", commands::cmd_start_acc,
                    "Reset BMA", commands::cmd_reset_acc,
                    "Print BMA config", commands::cmd_get_config,
                    "Set BMA range (Arg:0-2)", commands::cmd_set_range,
                    "Set BMA bandwidth (Arg:0-6)", commands::cmd_set_bandwidth,
                    "Reboot", commands::cmd_reboot,
-                   "\nConnection: nc -n -u 192.168.1.5 10001\n");
+                   String ("Contrl Con: nc -n -u " + ip + " 10001").c_str(),
+                   String ("Listen Con: nc -l -u -p 10001").c_str());
 }

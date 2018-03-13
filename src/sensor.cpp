@@ -16,11 +16,9 @@ void loop();
 WiFiUDP udpData;
 WiFiUDP udpCmd;
 
-const IPAddress dest = IPAddress (192, 168, 1, 5);
+const IPAddress dest = IPAddress (192, 168, 1, 7);
 const uint16_t udpDataPort = 10000;
 const uint16_t udpCmdPort = 10001;
-const char* udpAck = "0";
-const char* udpNack = "1";
 
 void setup_wifi()
 {
@@ -99,9 +97,9 @@ void setup()
     delay (2 * ms);
 
     // configure
-    bool suc = Bma020.setBandwidth (BMA020::BMA020BANDWIDTH::BMA020_BW_25HZ);
+    bool suc = Bma020.setBandwidth (sensor::BMA020BANDWIDTH::BMA020_BW_25HZ);
     Serial.printf ("BW configured: %3s\t", suc ? "OK" : "NOK");
-    suc = Bma020.setRange (BMA020::BMA020RANGE::BMA020_RANGE_8G);
+    suc = Bma020.setRange (sensor::BMA020RANGE::BMA020_RANGE_8G);
     Serial.printf ("Range configured: %3s\n", suc ? "OK" : "NOK");
     // network stuff
     udpData.begin (udpDataPort);
@@ -189,18 +187,23 @@ void loop()
         StaticJsonBuffer<cmd_max_Size> jsonBuffer;
         JsonObject& root = jsonBuffer.createObject();
 
-        root["type"] = 1;
-        root["error"] = cmd_struct.isValid ? udpAck : udpNack;
-        root["cmd"] = cmd_struct.cmd;
-        root["arg"] = cmd_struct.arg;
-        root["ret"] = cmd_struct.ret;
-        root["err"] = cmd_struct.err;
-        root["msg"] = cmd_struct.msg;
-        root["readable"] = Bma020.isBMAReadable();
-        root["range"].set<int> (Bma020.getRange());
-        root["bandwidth"].set<int> (Bma020.getBandwidth());
+        root[JKEY_type].set<int> (sensor::MSGTYPE::ANSWER);
+        root[JKEY_error].set<int> (cmd_struct.isValid ? sensor::SUCCESS::OK :
+                                   sensor::SUCCESS::NOK);
+        root[JKEY_cmd] = cmd_struct.cmd;
+        root[JKEY_arg] = cmd_struct.arg;
+        root[JKEY_ret] = cmd_struct.ret;
+        root[JKEY_err] = cmd_struct.err;
+        root[JKEY_msg] = cmd_struct.msg;
+        // start of status msg
+        root[JKEY_readable] = Bma020.isBMAReadable();
+        root[JKEY_bandwidth].set<int> (Bma020.getBandwidth());
+        root[JKEY_range].set<int> (Bma020.getRange());
+        root[JKEY_millis] = millis();
+
         String buf;
         root.printTo (buf);
+
         udpCmd.beginPacket (udpCmd.remoteIP(), udpCmd.remotePort());
         udpCmd.write (buf.c_str());
         udpCmd.endPacket();
@@ -213,15 +216,16 @@ void loop()
         {
             StaticJsonBuffer<cmd_max_Size> jsonBuffer;
             JsonObject& root = jsonBuffer.createObject();
-            root["type"] = 0;
-            root["readable"] = Bma020.isBMAReadable();
-            root["range"].set<int> (Bma020.getRange());
-            root["bandwidth"].set<int> (Bma020.getBandwidth());
-            root["micros"] = micros();
-            root["millis"] = micros();
+
+            root[JKEY_type].set<int> (sensor::MSGTYPE::STATUS);
+            root[JKEY_readable] = Bma020.isBMAReadable();
+            root[JKEY_range].set<int> (Bma020.getRange());
+            root[JKEY_bandwidth].set<int> (Bma020.getBandwidth());
+            root[JKEY_millis] = millis();
+
             String buf;
             root.printTo (buf);
-            udpCmd.beginPacket (udpCmd.remoteIP(), udpCmd.remotePort());
+            udpCmd.beginPacket (dest, udpCmdPort);
             udpCmd.write (buf.c_str());
             auto ret = udpCmd.endPacket();
 
