@@ -172,29 +172,10 @@ void loop()
     if (len)
     {
         String data = udpCmd.readString();
-        auto cmd_struct = commander.parse (data);
-
-        if (cmd_struct.isValid)
-        {
-            commander.execute (cmd_struct);
-            Serial.println (String ("Executing ") + cmd_struct.cmd);
-        }
-        else
-        {
-            Serial.println (cmd_struct.err);
-        }
-
+        Serial.println (data);
         StaticJsonBuffer<cmd_max_Size> jsonBuffer;
         JsonObject& root = jsonBuffer.createObject();
-
-        root[JKEY_type].set<int> (sensor::MSGTYPE::ANSWER);
-        root[JKEY_error].set<int> (cmd_struct.isValid ? sensor::SUCCESS::OK :
-                                   sensor::SUCCESS::NOK);
-        root[JKEY_cmd] = cmd_struct.cmd;
-        root[JKEY_arg] = cmd_struct.arg;
-        root[JKEY_ret] = cmd_struct.ret;
-        root[JKEY_err] = cmd_struct.err;
-        root[JKEY_msg] = cmd_struct.msg;
+        commander.process (data, root);
         // start of status msg
         root[JKEY_readable] = Bma020.isBMAReadable();
         root[JKEY_bandwidth].set<int> (Bma020.getBandwidth());
@@ -233,11 +214,12 @@ void loop()
             {
                 Serial.println ("Packet not send!");
             }
-            else
-            {
-                root.printTo (Serial);
-                Serial.println();
-            }
+
+//            else
+//            {
+//                root.printTo (Serial);
+//                Serial.println();
+//            }
 
             statusCtr = 0;
         }

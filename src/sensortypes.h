@@ -4,13 +4,13 @@
 #define JKEY_type "type"
 #define JKEY_error "error"
 #define JKEY_cmd "cmd"
-#define JKEY_arg "arg"
 #define JKEY_ret "ret"
 #define JKEY_err "err"
 #define JKEY_msg "msg"
 #define JKEY_readable "readable"
 #define JKEY_bandwidth "bandwidth"
 #define JKEY_range "range"
+#define JKEY_start "start"
 #define JKEY_millis "millis"
 
 namespace sensor {
@@ -53,12 +53,9 @@ namespace commands {
 // commands
 enum ctl_commands
 {
+    cmd_nocommand = -1,
     cmd_start_acc = 0,
     cmd_reset_acc,
-    cmd_get_config,
-    cmd_set_range,
-    cmd_set_bandwidth,
-    // commands with args
     cmd_reboot = 99,
 };
 

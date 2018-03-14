@@ -4,37 +4,23 @@
 #include "sensor.h"
 #include "sensortypes.h"
 
+#include <ArduinoJson.hpp>
+
 static const uint16_t cmd_max_Size = 300;
 extern const uint16_t cmd_max_Size;
 
 class Commander {
 public:
 
-    struct command_t
-    {
-        bool isValid;
-        commands::ctl_commands cmd;
-        String arg = "";
-        String ret = "";
-        String err = "";
-        String msg = "";
-    };
-
 private:
     bool _started;
 
-    void validateCommandWithNumericArg (command_t &cmd);
-
     bool reboot();
-    void getBMAConfig (command_t &cmd);
-    void setBMARange (command_t &cmd);
-    void setBMABandWidth (command_t &cmd);
-    void startStopMeasure (command_t &cmd);
+    bool setBMARange (sensor::BMA020RANGE);
+    bool setBMABandWidth (sensor::BMA020BANDWIDTH bw);
 
 public:
-    Commander();
-    command_t parse (String inp);
-    bool execute (command_t &cmd);
+    void process (const String &inp, ArduinoJson::JsonObject &rootOut);
     bool started();
     void printHelp();
 
