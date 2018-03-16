@@ -185,7 +185,7 @@ void loop()
         String buf;
         root.printTo (buf);
 
-        udpCmd.beginPacket (udpCmd.remoteIP(), udpCmd.remotePort());
+        udpCmd.beginPacket (dest, udpCmdPort);
         udpCmd.write (buf.c_str());
         udpCmd.endPacket();
     }
@@ -214,13 +214,6 @@ void loop()
             {
                 Serial.println ("Packet not send!");
             }
-
-//            else
-//            {
-//                root.printTo (Serial);
-//                Serial.println();
-//            }
-
             statusCtr = 0;
         }
 
