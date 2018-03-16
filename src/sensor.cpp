@@ -16,7 +16,7 @@ void loop();
 WiFiUDP udpData;
 WiFiUDP udpCmd;
 
-const IPAddress dest = IPAddress (192, 168, 1, 7);
+const IPAddress dest = IPAddress (192, 168, 1, 5);
 const uint16_t udpDataPort = 10000;
 const uint16_t udpCmdPort = 10001;
 
