@@ -193,7 +193,7 @@ void loop()
     // send state is not started, send sensor state
     if (commander.started() == false)
     {
-        if (statusCtr > 100)
+        if (statusCtr > 10)
         {
             StaticJsonBuffer<cmd_max_Size> jsonBuffer;
             JsonObject& root = jsonBuffer.createObject();
@@ -214,6 +214,7 @@ void loop()
             {
                 Serial.println ("Packet not send!");
             }
+
             statusCtr = 0;
         }
 
