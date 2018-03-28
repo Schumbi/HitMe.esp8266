@@ -116,18 +116,14 @@ uint8_t statusCtr = 0;
 uint16_t accDataBufCtr = 0;
 uint32_t packetCtr = 0;
 bool start = false;
-uint32_t startTime = 0;
 void loop()
 {
     using namespace ArduinoJson;
 
     if (commander.started() == true)
     {
-        if (startTime == 0)
-        {
-            // set start time, when it was reset
-            startTime = micros();
-        }
+		// set start time, when it was reset
+		uint32_t startTime = micros();
 
         if (Bma020.tryFetchNewData (accDataBuf, accDataBufCtr, accDataBufSize))
         {
@@ -138,10 +134,10 @@ void loop()
             memcpy (sendBuf + cpyStart, conv.data4x8, sizeOfTimeStamp);
             cpyStart += sizeof (startTime);
             // get time and set end time
-            uint32_t endtime = micros();
-            conv.data1x32 = endtime;
+			uint32_t endTime = micros();
+            conv.data1x32 = endTime;
             memcpy (sendBuf + cpyStart, conv.data4x8, sizeOfTimeStamp);
-            cpyStart += sizeof (endtime);
+            cpyStart += sizeof (endTime);
             // cpy packet id
             conv.data1x32 = packetCtr;
             memcpy (sendBuf + cpyStart, conv.data4x8, sizeOfPacketId);
@@ -158,9 +154,6 @@ void loop()
             {
                 Serial.println ("Packet not send!");
             }
-
-            // reset start time
-            startTime = 0;
             // reset data ctr
             accDataBufCtr = 0;
         }

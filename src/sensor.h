@@ -5,7 +5,7 @@
 #include <ESP8266WiFi.h>
 
 
-const uint8_t ACCPIN = D0;
+const uint8_t ACCPIN = D3;
 
 // list of used registers
 enum BMA020REGISTER
