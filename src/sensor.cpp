@@ -16,9 +16,9 @@ void loop();
 WiFiUDP udpData;
 WiFiUDP udpCmd;
 
-const IPAddress dest = IPAddress (192, 168, 1, 5);
-const uint16_t udpDataPort = 10000;
-const uint16_t udpCmdPort = 10001;
+IPAddress dest;
+const uint16_t udpDataPort = HITME_DATAPORT;
+const uint16_t udpCmdPort = HITME_CTRLPORT;
 
 void setup_wifi()
 {
@@ -26,11 +26,11 @@ void setup_wifi()
     delay (10);
     // We start by connecting to a WiFi network
     Serial.println();
-    Serial.print ("Connecting to ");
-    Serial.println (wifi_config::ssid);
+    Serial.print (F ("Connecting to "));
+    Serial.println (HITME_SSID);
     WiFi.hostname ("schlag_1");
     WiFi.mode (WiFiMode::WIFI_STA);
-    WiFi.begin (wifi_config::ssid, wifi_config::ssid_password);
+    WiFi.begin (HITME_SSID, HITME_PASS);
 
     while (WiFi.status() != WL_CONNECTED)
     {
@@ -40,9 +40,14 @@ void setup_wifi()
         digitalWrite (BUILTIN_LED, HIGH);
     }
 
+    if (dest.fromString (HITME_STDUIIP))
+    {
+        Serial.println (F ("Could not parse dest IP!"));
+    }
+
     Serial.println ();
-    Serial.println ("WiFi connected");
-    Serial.println ("IP address: ");
+    Serial.println (F ("WiFi connected"));
+    Serial.println (F ("IP address: "));
     Serial.println (WiFi.localIP());
     digitalWrite (BUILTIN_LED, HIGH);
     delay (100);
@@ -72,7 +77,7 @@ void setup()
     // Serial Stuff
     Serial.begin (9600);
     Serial.setDebugOutput (true);
-    Serial.println ("Start...");
+    Serial.println (F ("Start..."));
     setup_wifi();
     delay (100);
 
@@ -88,7 +93,7 @@ void setup()
     // initialize BMA020
     while (!Bma020.isBMAReadable ())
     {
-        Serial.print ("Restarting BMA -> \t");
+        Serial.print (F ("Restarting BMA -> \t"));
         Bma020.resetAcc();
         delay (5 * ms);
     }
@@ -104,12 +109,16 @@ void setup()
     // network stuff
     udpData.begin (udpDataPort);
     udpCmd.begin (udpCmdPort);
-    Serial.printf ("UDP port data %d\t", udpData.localPort());
-    Serial.printf ("UDP port cmd %d\n", udpCmd.localPort());
+    Serial.print (F ("UDP port data "));
+    Serial.print (udpData.localPort());
+    Serial.println();
+    Serial.print (F ("UDP port cmd "));
+    Serial.print (udpCmd.localPort());
+    Serial.println();
 
     commander.printHelp();
 
-    Serial.printf ("Start looping!\n");
+    Serial.println (F ("Start looping!"));
 }
 
 uint8_t statusCtr = 0;
@@ -122,8 +131,8 @@ void loop()
 
     if (commander.started() == true)
     {
-		// set start time, when it was reset
-		uint32_t startTime = micros();
+        // set start time, when it was reset
+        uint32_t startTime = micros();
 
         if (Bma020.tryFetchNewData (accDataBuf, accDataBufCtr, accDataBufSize))
         {
@@ -134,7 +143,7 @@ void loop()
             memcpy (sendBuf + cpyStart, conv.data4x8, sizeOfTimeStamp);
             cpyStart += sizeof (startTime);
             // get time and set end time
-			uint32_t endTime = micros();
+            uint32_t endTime = micros();
             conv.data1x32 = endTime;
             memcpy (sendBuf + cpyStart, conv.data4x8, sizeOfTimeStamp);
             cpyStart += sizeof (endTime);
@@ -154,6 +163,7 @@ void loop()
             {
                 Serial.println ("Packet not send!");
             }
+
             // reset data ctr
             accDataBufCtr = 0;
         }
@@ -205,8 +215,15 @@ void loop()
 
             if (ret == 0)
             {
-                Serial.println ("Packet not send!");
+                Serial.println (F ("Packet not send!"));
             }
+
+//            else
+//            {
+//                Serial.printf ("Packet send to %s on port %d!\n",
+//                               dest.toString().c_str(),
+//                               udpCmdPort);
+//            }
 
             statusCtr = 0;
         }
