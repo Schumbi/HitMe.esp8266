@@ -40,7 +40,7 @@ void setup_wifi()
         digitalWrite (BUILTIN_LED, HIGH);
     }
 
-    if (dest.fromString (HITME_STDUIIP))
+    if (!dest.fromString (HITME_STDUIIP))
     {
         Serial.println (F ("Could not parse dest IP!"));
     }
@@ -63,7 +63,7 @@ union conv_t
 const uint8_t sizeOfTimeStamp = sizeof (uint32_t); // byte
 const uint8_t sizeOfPacketId = sizeof (uint32_t); // byte
 
-const uint8_t bufferedAccData = 30;
+const uint8_t bufferedAccData = 90;
 const uint16_t accDataBufSize = BMA020::accPacket * bufferedAccData;
 // start and end of data block, packetid and acc data buffer size
 const uint16_t sendBufSize = sizeOfTimeStamp + sizeOfTimeStamp +
@@ -122,28 +122,33 @@ void setup()
 }
 
 uint8_t statusCtr = 0;
-uint16_t accDataBufCtr = 0;
+uint16_t dataBlockCounter = 0;
 uint32_t packetCtr = 0;
-bool start = false;
+uint32_t startTime = micros();
 void loop()
 {
     using namespace ArduinoJson;
 
     if (commander.started() == true)
     {
-        // set start time, when it was reset
-        uint32_t startTime = micros();
-
-        if (Bma020.tryFetchNewData (accDataBuf, accDataBufCtr, accDataBufSize))
+        // set start time, when last block was sesnd
+        if (dataBlockCounter == 0)
         {
+            startTime = micros();
+        }
+
+        // return true, if accDataBufSize of data was read
+        if (Bma020.tryFetchNewData (accDataBuf, dataBlockCounter, accDataBufSize))
+        {
+            // get time and set end time
+            uint32_t endTime = micros();
+
             // data measuring completed for this block
             uint8_t cpyStart = 0;
             // cpy start time
             conv.data1x32 = startTime;
             memcpy (sendBuf + cpyStart, conv.data4x8, sizeOfTimeStamp);
             cpyStart += sizeof (startTime);
-            // get time and set end time
-            uint32_t endTime = micros();
             conv.data1x32 = endTime;
             memcpy (sendBuf + cpyStart, conv.data4x8, sizeOfTimeStamp);
             cpyStart += sizeof (endTime);
@@ -154,7 +159,6 @@ void loop()
             // cpy acc data
             memcpy (sendBuf + cpyStart, accDataBuf, accDataBufSize);
             // send stuff
-            packetCtr++;
             udpData.beginPacket (dest, udpDataPort);
             udpData.write (sendBuf, sendBufSize);
             auto ret = udpData.endPacket();
@@ -165,7 +169,8 @@ void loop()
             }
 
             // reset data ctr
-            accDataBufCtr = 0;
+            dataBlockCounter = 0;
+            packetCtr++;
         }
     }
 

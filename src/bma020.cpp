@@ -132,7 +132,8 @@ bool BMA020::isBMAReadable ()
     return  id == 2;
 }
 
-bool BMA020::tryFetchNewData (uint8_t* accBuf, uint16_t& curCount,
+bool BMA020::tryFetchNewData (uint8_t *accBuf,
+                              uint16_t &curCount,
                               uint16_t bufSize)
 {
     bool dataAvail = false;
