@@ -22,7 +22,7 @@ const uint16_t udpCmdPort = HITME_CTRLPORT;
 
 void setup_wifi()
 {
-    digitalWrite (BUILTIN_LED, LOW);
+    digitalWrite (LED_BUILTIN, LOW);
     delay (10);
     // We start by connecting to a WiFi network
     Serial.println();
@@ -34,10 +34,10 @@ void setup_wifi()
 
     while (WiFi.status() != WL_CONNECTED)
     {
-        digitalWrite (BUILTIN_LED, LOW);
+        digitalWrite (LED_BUILTIN, LOW);
         delay (500);
         Serial.print (".");
-        digitalWrite (BUILTIN_LED, HIGH);
+        digitalWrite (LED_BUILTIN, HIGH);
     }
 
     if (!dest.fromString (HITME_STDUIIP))
@@ -49,7 +49,7 @@ void setup_wifi()
     Serial.println (F ("WiFi connected"));
     Serial.println (F ("IP address: "));
     Serial.println (WiFi.localIP());
-    digitalWrite (BUILTIN_LED, HIGH);
+    digitalWrite (LED_BUILTIN, HIGH);
     delay (100);
 }
 
@@ -73,7 +73,7 @@ uint8_t* accDataBuf;
 
 void setup()
 {
-    pinMode (BUILTIN_LED, OUTPUT); // Initialize the BUILTIN_LED pin as an output
+    pinMode (LED_BUILTIN, OUTPUT); // Initialize the BUILTIN_LED pin as an output
     // Serial Stuff
     Serial.begin (9600);
     Serial.setDebugOutput (true);
