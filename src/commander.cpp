@@ -29,7 +29,7 @@ void Commander::process (const String &inp, ArduinoJson::JsonObject& rootOut)
     StaticJsonBuffer<cmd_max_Size> jsonBufferIn;
     JsonObject& rootIn = jsonBufferIn.parseObject (inp);
 
-    rootOut[JKEY_type] = sensor::MSGTYPE::ANSWER;
+    rootOut[JKEY_type] = sensor::MSGTYPE::ANSWER_MSG;
 
     if (inp.length() > cmd_max_Size)
     {
@@ -59,7 +59,7 @@ void Commander::process (const String &inp, ArduinoJson::JsonObject& rootOut)
     // required
     int ty = rootIn[JKEY_type];
 
-    if (static_cast<sensor::MSGTYPE> (ty) != sensor::MSGTYPE::REQUEST)
+    if (static_cast<sensor::MSGTYPE> (ty) != sensor::MSGTYPE::REQUEST_MSG)
     {
         rootOut[JKEY_type] = sensor::MSGTYPE::PARSEERR;
         rootOut[JKEY_err] = F ("Not a control package!");

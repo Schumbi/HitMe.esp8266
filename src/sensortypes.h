@@ -24,9 +24,9 @@ enum SUCCESS
 enum MSGTYPE
 {
     PARSEERR = -1,
-    REQUEST = 0,
-    ANSWER,
-    STATUS
+    REQUEST_MSG = 0,
+    ANSWER_MSG,
+    STATUS_MSG
 };
 
 enum BMA020BANDWIDTH

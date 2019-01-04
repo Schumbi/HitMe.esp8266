@@ -206,7 +206,7 @@ void loop()
             StaticJsonBuffer<cmd_max_Size> jsonBuffer;
             JsonObject& root = jsonBuffer.createObject();
 
-            root[JKEY_type].set<int> (sensor::MSGTYPE::STATUS);
+            root[JKEY_type].set<int> (sensor::MSGTYPE::STATUS_MSG);
             root[JKEY_readable] = Bma020.isBMAReadable();
             root[JKEY_range].set<int> (Bma020.getRange());
             root[JKEY_bandwidth].set<int> (Bma020.getBandwidth());
