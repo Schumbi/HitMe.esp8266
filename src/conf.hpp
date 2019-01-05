@@ -1,7 +1,7 @@
 #ifndef CONF_HPP
 #define CONF_HPP
 
-#include "../../wlan.hpp"
+#include "../wlan_example.conf"
 
 #define WEBNAME "sensor_1"
 
