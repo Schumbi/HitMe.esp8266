@@ -187,6 +187,7 @@ void loop()
         Serial.printf("%s %s\n", res.errMessage.c_str(), res.success ? "ok" : "error");
 
         // todo: Calculate cmd_max_Size with JSON_OBJECT_SIZE
+        // todo: Introduce response message to config changes
         StaticJsonDocument<cmd_max_Size> root;
         // start of status msg
         root[JKEY_readable] = Bma020.isBMAReadable();
