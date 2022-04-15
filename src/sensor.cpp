@@ -181,14 +181,10 @@ void loop()
     {
         String data = udpCmd.readString();
         Serial.println (data);
-        /*
-            StaticJsonBuffer<cmd_max_Size> jsonBuffer;
-            JsonObject& root = jsonBuffer.createObject();
-            commander.process (data, root);
-            // todo: create some return class, that contains the error states of processing
-        */
+        // todo: create some return class, that contains the error states of processing
        
-       commander.process (data);
+        auto res = commander.process (data);
+        Serial.printf("%s %s\n", res.errMessage.c_str(), res.success ? "ok" : "error");
 
         // todo: Calculate cmd_max_Size with JSON_OBJECT_SIZE
         StaticJsonDocument<cmd_max_Size> root;

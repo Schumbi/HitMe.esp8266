@@ -45,10 +45,26 @@ Commander:: processState_t Commander::process (const String &inp)
 
     if (static_cast<sensor::MSGTYPE> (ty) != sensor::MSGTYPE::REQUEST_MSG)
     {
-        result.messageType = sensor::MSGTYPE::PARSEERR;
-        result.errMessage = F ("Not a control package!");
-        result.success = false;
-        return result;
+        // system control package
+        switch (ty)
+        {
+        case commands::cmd_nocommand:
+            break;
+
+        case commands::cmd_reset_acc:
+            Bma020.resetAcc();
+            break;
+
+        case commands::cmd_reboot:
+            reboot();
+            break;
+
+        default:
+            result.messageType = sensor::MSGTYPE::PARSEERR;
+            result.errMessage = F ("Command is unknown!");
+            result.success = false;
+            return result;
+        }
     }
 
     // not required
@@ -71,31 +87,7 @@ Commander:: processState_t Commander::process (const String &inp)
     }
 
     _started = rootIn[JKEY_start];
-
-
-    // command stuff
-    switch (ty)
-    {
-    case commands::cmd_nocommand:
-        break;
-
-    case commands::cmd_reset_acc:
-        Bma020.resetAcc();
-        break;
-
-    case commands::cmd_reboot:
-        reboot();
-        break;
-
-    default:
-        result.messageType = sensor::MSGTYPE::PARSEERR;
-        result.errMessage = F ("Command is unknown!");
-        result.success = false;
-        return result;
-    }
-
     result.success = true;
-
     return result;
 }
 
