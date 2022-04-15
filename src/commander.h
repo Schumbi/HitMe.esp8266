@@ -11,6 +11,11 @@ extern const uint16_t cmd_max_Size;
 
 class Commander {
 public:
+    typedef struct {
+        sensor::MSGTYPE messageType;
+        String errMessage;
+        bool success;
+    } processState_t;
 
 private:
     bool _started;
@@ -20,7 +25,7 @@ private:
     bool setBMABandWidth (sensor::BMA020BANDWIDTH bw);
 
 public:
-    void process (const String &inp, ArduinoJson::JsonObject &rootOut);
+    processState_t process (const String &inp);
     bool started();
     void printHelp();
 

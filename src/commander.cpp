@@ -23,37 +23,21 @@ bool Commander::setBMABandWidth (sensor::BMA020BANDWIDTH bw)
     return Bma020.getBandwidth() == bw;
 }
 
-void Commander::process (const String &inp, ArduinoJson::JsonObject& rootOut)
+Commander:: processState_t Commander::process (const String &inp)
 {
     using namespace ArduinoJson;
-    StaticJsonBuffer<cmd_max_Size> jsonBufferIn;
-    JsonObject& rootIn = jsonBufferIn.parseObject (inp);
-
-    rootOut[JKEY_type] = sensor::MSGTYPE::ANSWER_MSG;
-
-    if (inp.length() > cmd_max_Size)
+    
+    processState_t result;
+    result.messageType = sensor::MSGTYPE::ANSWER_MSG;
+    
+    StaticJsonDocument<cmd_max_Size> rootIn;
+    auto parseErr = deserializeJson(rootIn, inp);
+    if(parseErr)
     {
-        rootOut[JKEY_type] = sensor::MSGTYPE::PARSEERR;
-        rootOut[JKEY_err] = F ("Input sequence is too long!");
-        return;
-    }
-
-    String jparseerror (F ("Could not parse json!"));
-
-    if (!rootIn.success())
-    {
-        rootOut[JKEY_type] = sensor::MSGTYPE::PARSEERR;
-        rootOut[JKEY_err] = jparseerror;
-        return;
-    }
-
-    JsonVariant var = rootIn[JKEY_type];
-
-    if (!var.success() || (!var.is<int>()))
-    {
-        rootOut[JKEY_type] = sensor::MSGTYPE::PARSEERR;
-        rootOut[JKEY_err] = jparseerror;
-        return;
+        result.messageType = sensor::MSGTYPE::PARSEERR;
+        result.errMessage = F ("Parser");
+        result.success = false;
+        return result;        
     }
 
     // required
@@ -61,71 +45,58 @@ void Commander::process (const String &inp, ArduinoJson::JsonObject& rootOut)
 
     if (static_cast<sensor::MSGTYPE> (ty) != sensor::MSGTYPE::REQUEST_MSG)
     {
-        rootOut[JKEY_type] = sensor::MSGTYPE::PARSEERR;
-        rootOut[JKEY_err] = F ("Not a control package!");
-        return;
+        result.messageType = sensor::MSGTYPE::PARSEERR;
+        result.errMessage = F ("Not a control package!");
+        result.success = false;
+        return result;
     }
 
     // not required
-    var = rootIn[JKEY_bandwidth];
-
-    if (var.success() && (var.is<int>()))
+    int bandWidth = rootIn[JKEY_bandwidth];
+    if (!setBMABandWidth (static_cast<BMA020BANDWIDTH> (bandWidth)))
     {
-        if (!setBMABandWidth (static_cast<BMA020BANDWIDTH> (var.as<int>())))
-        {
-            rootOut[JKEY_type] = sensor::MSGTYPE::PARSEERR;
-            rootOut[JKEY_err] = F ("Could not set bandwidth!");
-            return;
-        }
+        result.messageType = sensor::MSGTYPE::PARSEERR;
+        result.errMessage = F ("Could not set bandwidth!");
+        result.success = false;
+        return result;
     }
 
-    var = rootIn[JKEY_range];
-
-    if (var.success() && var.is<int>() )
+    int range =  rootIn[JKEY_range];
+    if (!setBMARange (static_cast<BMA020RANGE> (range)))
     {
-        if (!setBMARange (static_cast<BMA020RANGE> (var.as<int>())))
-        {
-            rootOut[JKEY_type] = sensor::MSGTYPE::PARSEERR;
-            rootOut[JKEY_err] = F ("Could not set bandwidth!");
-            return;
-        }
+        result.messageType = sensor::MSGTYPE::PARSEERR;
+        result.errMessage = F ("Could not set bandwidth!");
+        result.success = false;
+        return result;
     }
 
-    var = rootIn[JKEY_start];
+    _started = rootIn[JKEY_start];
 
-    if (var.success() && var.is<bool>() )
-    {
-        _started = var.as<bool>();
-    }
 
     // command stuff
-    var = rootIn[JKEY_cmd];
-
-    if (var.success() && var.is<int>())
+    switch (ty)
     {
-        ty =  var.as<int>();
+    case commands::cmd_nocommand:
+        break;
 
-        switch (ty)
-        {
-        case commands::cmd_nocommand:
-            break;
+    case commands::cmd_reset_acc:
+        Bma020.resetAcc();
+        break;
 
-        case commands::cmd_reset_acc:
-            Bma020.resetAcc();
-            break;
+    case commands::cmd_reboot:
+        reboot();
+        break;
 
-        case commands::cmd_reboot:
-            reboot();
-            break;
-
-        default:
-            rootOut[JKEY_type] = sensor::MSGTYPE::PARSEERR;
-            rootOut[JKEY_err] = F ("Command is unknown!");
-            return;
-        }
+    default:
+        result.messageType = sensor::MSGTYPE::PARSEERR;
+        result.errMessage = F ("Command is unknown!");
+        result.success = false;
+        return result;
     }
 
-    rootOut[JKEY_ret] = true;
+    result.success = true;
+
+    return result;
 }
 
 bool Commander::started()

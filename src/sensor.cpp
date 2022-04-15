@@ -181,9 +181,17 @@ void loop()
     {
         String data = udpCmd.readString();
         Serial.println (data);
-        StaticJsonBuffer<cmd_max_Size> jsonBuffer;
-        JsonObject& root = jsonBuffer.createObject();
-        commander.process (data, root);
+        /*
+            StaticJsonBuffer<cmd_max_Size> jsonBuffer;
+            JsonObject& root = jsonBuffer.createObject();
+            commander.process (data, root);
+            // todo: create some return class, that contains the error states of processing
+        */
+       
+       commander.process (data);
+
+        // todo: Calculate cmd_max_Size with JSON_OBJECT_SIZE
+        StaticJsonDocument<cmd_max_Size> root;
         // start of status msg
         root[JKEY_readable] = Bma020.isBMAReadable();
         root[JKEY_bandwidth].set<int> (Bma020.getBandwidth());
@@ -191,8 +199,9 @@ void loop()
         root[JKEY_millis] = millis();
 
         String buf;
-        root.printTo (buf);
+        serializeJson(root, buf);
 
+        // todo: pass udp client directly
         udpCmd.beginPacket (dest, udpCmdPort);
         udpCmd.write (buf.c_str());
         udpCmd.endPacket();
@@ -203,9 +212,7 @@ void loop()
     {
         if (statusCtr > 10)
         {
-            StaticJsonBuffer<cmd_max_Size> jsonBuffer;
-            JsonObject& root = jsonBuffer.createObject();
-
+            StaticJsonDocument<cmd_max_Size> root;
             root[JKEY_type].set<int> (sensor::MSGTYPE::STATUS_MSG);
             root[JKEY_readable] = Bma020.isBMAReadable();
             root[JKEY_range].set<int> (Bma020.getRange());
@@ -213,7 +220,7 @@ void loop()
             root[JKEY_millis] = millis();
 
             String buf;
-            root.printTo (buf);
+            serializeJson(root, buf);
             udpCmd.beginPacket (dest, udpCmdPort);
             udpCmd.write (buf.c_str());
             auto ret = udpCmd.endPacket();
