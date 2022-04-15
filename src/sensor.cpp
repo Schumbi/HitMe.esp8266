@@ -116,7 +116,7 @@ void setup()
     Serial.print (udpCmd.localPort());
     Serial.println();
 
-    commander.printHelp();
+    Cmder.printHelp();
 
     Serial.println (F ("Start looping!"));
 }
@@ -129,7 +129,7 @@ void loop()
 {
     using namespace ArduinoJson;
 
-    if (commander.started() == true)
+    if (Cmder.started() == true)
     {
         // set start time, when last block was sesnd
         if (dataBlockCounter == 0)
@@ -183,7 +183,7 @@ void loop()
         Serial.println (data);
         // todo: create some return class, that contains the error states of processing
        
-        auto res = commander.process (data);
+        auto res = Cmder.process (data);
         Serial.printf("%s %s\n", res.errMessage.c_str(), res.success ? "ok" : "error");
 
         // todo: Calculate cmd_max_Size with JSON_OBJECT_SIZE
@@ -205,7 +205,7 @@ void loop()
     }
 
     // send state is not started, send sensor state
-    if (commander.started() == false)
+    if (Cmder.started() == false)
     {
         if (statusCtr > 10)
         {
@@ -226,14 +226,6 @@ void loop()
             {
                 Serial.println (F ("Packet not send!"));
             }
-
-//            else
-//            {
-//                Serial.printf ("Packet send to %s on port %d!\n",
-//                               dest.toString().c_str(),
-//                               udpCmdPort);
-//            }
-
             statusCtr = 0;
         }
 

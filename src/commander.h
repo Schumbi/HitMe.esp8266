@@ -32,8 +32,8 @@ public:
 };
 
 #if !defined(NO_GLOBAL_INSTANCES) && !defined(NO_GLOBAL_TWOWIRE)
-    static Commander commander;
-    extern Commander commander;
+    static Commander Cmder;
+    extern Commander Cmder;
 #endif
 
 #endif // COMMANDER_H
