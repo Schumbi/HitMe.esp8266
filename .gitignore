@@ -6,3 +6,5 @@
 .vscode/extensions.json
 wlan.conf
 doc/*.pdf
+.vs/
+.vscode/
