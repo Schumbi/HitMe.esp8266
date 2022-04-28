@@ -190,6 +190,7 @@ void loop()
         // todo: Introduce response message to config changes
         StaticJsonDocument<cmd_max_Size> root;
         // start of status msg
+        root[JKEY_type].set<int> (res.messageType);
         root[JKEY_readable] = Bma020.isBMAReadable();
         root[JKEY_bandwidth].set<int> (Bma020.getBandwidth());
         root[JKEY_range].set<int> (Bma020.getRange());
