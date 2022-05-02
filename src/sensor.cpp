@@ -179,31 +179,34 @@ void loop()
 
     if (len)
     {
-        String data = udpCmd.readString();
-        Serial.println (data);
-        // todo: create some return class, that contains the error states of processing
-       
-        auto res = Cmder.process (data);
-        Serial.printf("%s %s\n", res.errMessage.c_str(), res.success ? "ok" : "error");
+        if(udpCmd.remoteIP() == dest)
+        {
+            String data = udpCmd.readString();
+            Serial.println (data);
+            // todo: create some return class, that contains the error states of processing
+        
+            auto res = Cmder.process (data);
+            Serial.printf("%s %s\n", res.errMessage.c_str(), res.success ? "ok" : "error");
 
-        // todo: Calculate cmd_max_Size with JSON_OBJECT_SIZE
-        // todo: Introduce response message to config changes
-        StaticJsonDocument<cmd_max_Size> root;
-        // start of status msg
-        root[JKEY_type].set<int> (res.messageType);
-        root[JKEY_start] = Cmder.started();
-        root[JKEY_readable] = Bma020.isBMAReadable();
-        root[JKEY_bandwidth].set<int> (Bma020.getBandwidth());
-        root[JKEY_range].set<int> (Bma020.getRange());
-        root[JKEY_millis] = millis();
+            // todo: Calculate cmd_max_Size with JSON_OBJECT_SIZE
+            // todo: Introduce response message to config changes
+            StaticJsonDocument<cmd_max_Size> root;
+            // start of status msg
+            root[JKEY_type].set<int> (res.messageType);
+            root[JKEY_start] = Cmder.started();
+            root[JKEY_readable] = Bma020.isBMAReadable();
+            root[JKEY_bandwidth].set<int> (Bma020.getBandwidth());
+            root[JKEY_range].set<int> (Bma020.getRange());
+            root[JKEY_millis] = millis();
 
-        String buf;
-        serializeJson(root, buf);
+            String buf;
+            serializeJson(root, buf);
 
-        // todo: pass udp client directly
-        udpCmd.beginPacket (dest, udpCmdPort);
-        udpCmd.write (buf.c_str());
-        udpCmd.endPacket();
+            // todo: pass udp client directly
+            udpCmd.beginPacket (dest, udpCmdPort);
+            udpCmd.write (buf.c_str());
+            udpCmd.endPacket();
+        }
     }
 
     // send state is not started, send sensor state
